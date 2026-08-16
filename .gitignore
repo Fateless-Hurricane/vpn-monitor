@@ -1,0 +1,48 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+
+# Virtual environments
+.venv/
+venv/
+env/
+ENV/
+
+# Database files (contains personal subscriptions & server links)
+*.db
+*.sqlite
+*.sqlite3
+vpn_monitor.db
+data/
+
+# Binaries & Downloads
+bin/
+xray
+xray.exe
+*.zip
+*.tar.gz
+
+# Environment variables & secrets
+.env
+.env.*
+*.pem
+*.key
+*.cert
+
+# Operating System & IDE metadata
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Logs
+*.log

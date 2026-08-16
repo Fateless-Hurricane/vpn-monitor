@@ -1,0 +1,794 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Relay — V2Ray & VPN Network Status</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg: #0a0f1a;
+    --panel: #0f1729;
+    --panel-2: #131d33;
+    --border: #202c47;
+    --border-hover: #33446b;
+    --text: #dbe4f3;
+    --muted: #7c8aa8;
+    --dim: #4c597a;
+    --signal: #4fd1c5;
+    --signal-dim: #1c4a49;
+    --ok: #34d399;
+    --ok-dim: #0f3d2e;
+    --warn: #fbbf24;
+    --warn-dim: #3d3110;
+    --down: #f87171;
+    --down-dim: #3d1616;
+    --unknown: #64748b;
+    --font-mono: 'IBM Plex Mono', ui-monospace, monospace;
+    --font-sans: 'Inter', -apple-system, sans-serif;
+  }
+
+  *{ box-sizing: border-box; margin: 0; padding: 0; }
+  html{ scroll-behavior: smooth; }
+  body{
+    background: var(--bg);
+    background-image:
+      radial-gradient(ellipse 900px 500px at 15% -10%, rgba(79,209,197,0.08), transparent 60%),
+      radial-gradient(ellipse 700px 500px at 100% 0%, rgba(79,209,197,0.05), transparent 55%);
+    color: var(--text);
+    font-family: var(--font-sans);
+    line-height: 1.5;
+    min-height: 100vh;
+  }
+
+  .wrap{ max-width: 960px; margin: 0 auto; padding: 40px 20px 80px; }
+
+  /* ---------- header ---------- */
+  header.top{
+    display:flex; align-items:center; justify-content:space-between;
+    margin-bottom: 32px; gap: 16px; flex-wrap: wrap;
+  }
+  .brand{ display:flex; align-items:center; gap: 12px; }
+  .brand-mark{
+    width: 36px; height: 36px; border-radius: 9px;
+    background: linear-gradient(135deg, var(--signal), #2b7a76);
+    display:flex; align-items:center; justify-content:center;
+    font-family: var(--font-mono); font-weight:700; font-size: 16px; color:#04120f;
+    box-shadow: 0 0 20px rgba(79,209,197,0.25);
+    flex-shrink:0;
+  }
+  .brand-name{ font-weight:700; font-size: 18px; letter-spacing: 0.01em; }
+  .brand-sub{ font-family: var(--font-mono); font-size: 11.5px; color: var(--dim); margin-top:2px; display:flex; align-items:center; gap:8px; }
+
+  .header-actions{ display:flex; align-items:center; gap: 10px; flex-wrap: wrap; }
+  .btn{
+    font-family: var(--font-mono); font-size: 12px; font-weight:600;
+    padding: 8px 14px; border-radius: 7px; cursor: pointer;
+    border: 1px solid var(--border); background: var(--panel-2); color: var(--text);
+    display:inline-flex; align-items:center; gap:6px; transition: all 0.15s ease;
+  }
+  .btn:hover{ border-color: var(--signal); background: rgba(79,209,197,0.1); }
+  .btn:disabled{ opacity:0.5; cursor:not-allowed; }
+  .btn-primary{ background: var(--signal); color: #04120f; border:none; }
+  .btn-primary:hover{ background: #38b2ac; }
+
+  .sync-info{ font-family: var(--font-mono); font-size: 11.5px; color: var(--muted); text-align:right; }
+  .sync-info b{ color: var(--text); font-weight: 600; }
+
+  /* ---------- system status bar ---------- */
+  .system-status-bar{
+    display:flex; align-items:center; justify-content:space-between;
+    background: rgba(19, 29, 51, 0.6); border: 1px solid var(--border);
+    border-radius: 8px; padding: 8px 14px; margin-bottom: 24px;
+    font-family: var(--font-mono); font-size: 11.5px; color: var(--muted);
+    flex-wrap: wrap; gap: 10px;
+  }
+  .sys-badge{
+    display:inline-flex; align-items:center; gap:6px; padding: 2px 8px; border-radius: 4px;
+    background: rgba(52, 211, 153, 0.15); color: var(--ok); font-weight: 500;
+  }
+  .sys-badge.warn{ background: rgba(251, 191, 36, 0.15); color: var(--warn); }
+  .sys-badge.down{ background: rgba(248, 113, 113, 0.15); color: var(--down); }
+
+  /* ---------- overall banner ---------- */
+  .banner{
+    border-radius: 12px;
+    border: 1px solid var(--border);
+    background: var(--panel);
+    padding: 22px 24px;
+    display:flex; align-items:center; gap:18px;
+    margin-bottom: 28px;
+    position: relative;
+    overflow:hidden;
+  }
+  .banner::before{
+    content:"";
+    position:absolute; inset:0;
+    background: linear-gradient(90deg, transparent, rgba(79,209,197,0.25), transparent);
+    width: 40%;
+    animation: sweep 5s ease-in-out infinite;
+    opacity: 0.5;
+  }
+  @keyframes sweep{
+    0%{ transform: translateX(-120%); }
+    100%{ transform: translateX(320%); }
+  }
+  .banner.state-degraded::before{ background: linear-gradient(90deg, transparent, rgba(251,191,36,0.3), transparent); }
+  .banner.state-down::before{ background: linear-gradient(90deg, transparent, rgba(248,113,113,0.3), transparent); }
+
+  .banner-dot{
+    width: 16px; height: 16px; border-radius: 50%;
+    background: var(--ok); flex-shrink:0; position:relative; z-index:1;
+    box-shadow: 0 0 0 4px var(--ok-dim);
+  }
+  .banner-dot.pulsing::after{
+    content:""; position:absolute; inset:-4px; border-radius:50%;
+    border: 2px solid var(--ok); opacity:0.6;
+    animation: ping 1.8s cubic-bezier(0,0,0.2,1) infinite;
+  }
+  @keyframes ping{
+    0%{ transform: scale(1); opacity:0.7; }
+    100%{ transform: scale(2.2); opacity:0; }
+  }
+  .banner.state-degraded .banner-dot{ background: var(--warn); box-shadow: 0 0 0 4px var(--warn-dim); }
+  .banner.state-degraded .banner-dot::after{ border-color: var(--warn); }
+  .banner.state-down .banner-dot{ background: var(--down); box-shadow: 0 0 0 4px var(--down-dim); }
+  .banner.state-down .banner-dot::after{ border-color: var(--down); }
+  .banner.state-unknown .banner-dot{ background: var(--unknown); box-shadow: 0 0 0 4px rgba(100,116,139,0.2); }
+
+  .banner-text{ position:relative; z-index:1; flex:1; }
+  .banner-title{ font-size: 18px; font-weight:700; }
+  .banner-sub{ font-size:13.5px; color: var(--muted); margin-top:2px; }
+
+  /* ---------- filter & manage controls ---------- */
+  .controls-row{
+    display:flex; align-items:center; justify-content:space-between;
+    margin-bottom: 20px; gap: 12px; flex-wrap: wrap;
+  }
+  .filters{ display:flex; gap: 6px; flex-wrap: wrap; }
+  .filter-btn{
+    font-family: var(--font-mono); font-size: 11px; font-weight:600;
+    padding: 4px 10px; border-radius: 6px; cursor: pointer;
+    border: 1px solid var(--border); background: var(--panel); color: var(--muted);
+  }
+  .filter-btn.active{
+    background: var(--panel-2); border-color: var(--signal); color: var(--signal);
+  }
+
+  /* ---------- subscription group ---------- */
+  .sub-group{ margin-bottom: 28px; }
+  .sub-head{
+    display:flex; align-items:center; justify-content:space-between;
+    padding: 6px 4px 14px;
+  }
+  .sub-title-area{ display:flex; align-items:center; gap: 10px; }
+  .sub-name{ font-size: 14px; font-weight:700; letter-spacing:0.02em; text-transform:uppercase; color: var(--text); }
+  .sub-sync-btn{
+    font-family: var(--font-mono); font-size: 10px; padding: 2px 7px; border-radius: 4px;
+    background: var(--panel-2); border: 1px solid var(--border); color: var(--muted);
+    cursor: pointer;
+  }
+  .sub-sync-btn:hover{ border-color: var(--signal); color: var(--signal); }
+  .sub-status-pill{
+    font-family: var(--font-mono); font-size: 11px; padding: 3px 10px; border-radius: 20px;
+    border:1px solid var(--border); color: var(--ok); background: var(--ok-dim); font-weight:500;
+  }
+  .sub-status-pill.degraded{ color: var(--warn); background: var(--warn-dim); }
+  .sub-status-pill.down{ color: var(--down); background: var(--down-dim); }
+  .sub-status-pill.unknown{ color: var(--unknown); background: rgba(100,116,139,0.15); }
+
+  .server-card{
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    margin-bottom: 10px;
+    overflow: hidden;
+    transition: all 0.15s ease;
+  }
+  .server-card:hover{ border-color: var(--border-hover); transform: translateY(-1px); }
+
+  .server-row{
+    display:flex; align-items:center; gap: 14px;
+    padding: 14px 18px;
+    cursor: pointer;
+  }
+  .flag{ font-size: 22px; line-height:1; flex-shrink:0; width: 30px; text-align:center; }
+
+  .server-id{ min-width: 0; flex: 1 1 auto; }
+  .server-name{ font-size: 14px; font-weight: 600; display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+  .proto-badge{
+    font-family: var(--font-mono); font-size: 10px; padding: 1px 6px; border-radius: 4px;
+    background: var(--panel-2); color: var(--signal); border: 1px solid var(--signal-dim);
+    text-transform: uppercase; letter-spacing: 0.03em; font-weight:600;
+  }
+  .server-meta{ font-family: var(--font-mono); font-size: 11.5px; color: var(--dim); margin-top: 3px; }
+
+  .server-stats{ display:flex; align-items:center; gap: 20px; flex-shrink:0; }
+  .stat{ text-align:right; min-width: 60px; }
+  .stat-value{ font-family: var(--font-mono); font-size: 13.5px; font-weight:600; }
+  .stat-label{ font-size: 10px; color: var(--dim); text-transform:uppercase; letter-spacing:0.04em; margin-top:1px;}
+
+  .status-chip{
+    display:flex; align-items:center; gap:6px;
+    font-family: var(--font-mono); font-size: 12px; font-weight:600;
+    padding: 5px 12px; border-radius: 6px; flex-shrink:0;
+    background: var(--ok-dim); color: var(--ok);
+  }
+  .status-chip .dot{ width:6px; height:6px; border-radius:50%; background: currentColor; }
+  .status-chip.degraded{ background: var(--warn-dim); color: var(--warn); }
+  .status-chip.down{ background: var(--down-dim); color: var(--down); }
+  .status-chip.unknown{ background: rgba(100,116,139,0.15); color: var(--unknown); }
+
+  /* history bars */
+  .history-strip{
+    display:flex; align-items:flex-end; gap: 2px;
+    padding: 0 18px 14px;
+    height: 32px;
+  }
+  .hbar{
+    flex: 1 1 auto; min-width: 3px; height: 100%;
+    background: var(--ok); border-radius: 2px; opacity: 0.85;
+    cursor: pointer; position: relative; transition: transform 0.1s ease;
+  }
+  .hbar.degraded{ background: var(--warn); }
+  .hbar.down{ background: var(--down); }
+  .hbar.unknown{ background: var(--dim); opacity: 0.35; }
+  .hbar:hover{ opacity: 1; transform: scaleY(1.15); }
+
+  /* expandable incident / error note */
+  .error-note{
+    display: none;
+    font-family: var(--font-mono); font-size: 11.5px; color: var(--down);
+    background: rgba(248, 113, 113, 0.08); border-top: 1px dashed var(--border);
+    padding: 8px 18px;
+  }
+  .server-card.has-error .error-note{ display:block; }
+
+  /* ---------- manage subscriptions panel ---------- */
+  .manage-panel{
+    background: var(--panel); border: 1px solid var(--border); border-radius: 10px;
+    padding: 16px 18px; margin-bottom: 28px;
+  }
+  .manage-head{
+    display:flex; align-items:center; justify-content:space-between; cursor: pointer;
+    user-select: none;
+  }
+  .manage-title{ font-size: 13.5px; font-weight:600; color: var(--text); display:flex; align-items:center; gap:8px; }
+  .manage-toggle{ font-family: var(--font-mono); font-size: 11px; color: var(--signal); }
+  .manage-body{ margin-top: 14px; display:none; }
+  .manage-body.open{ display:block; }
+
+  .sub-list-item{
+    display:flex; align-items:center; justify-content:space-between;
+    padding: 10px 0; border-bottom: 1px solid var(--border); font-size: 13px;
+  }
+  .sub-list-item:last-of-type{ border-bottom:none; }
+  .sub-list-name{ font-weight:600; color: var(--text); }
+  .sub-list-meta{ font-family: var(--font-mono); font-size: 11px; color: var(--dim); margin-top:2px; word-break: break-all; }
+  .sub-remove-btn{
+    background: none; border: 1px solid var(--border); color: var(--down);
+    font-family: var(--font-mono); font-size: 11px; padding: 4px 10px; border-radius: 6px;
+    cursor: pointer; flex-shrink:0; margin-left:12px;
+  }
+  .sub-remove-btn:hover{ background: var(--down-dim); }
+
+  .add-sub-form{ display:flex; gap: 8px; margin-top: 16px; flex-wrap: wrap; }
+  .add-sub-form input{
+    background: var(--panel-2); border: 1px solid var(--border); color: var(--text);
+    font-family: var(--font-mono); font-size: 12px; padding: 8px 12px; border-radius: 6px;
+    outline: none;
+  }
+  .add-sub-form input:focus{ border-color: var(--signal); }
+  .add-sub-form input[name="name"]{ width: 160px; }
+  .add-sub-form input[name="url"]{ flex: 1 1 260px; }
+  .form-msg{ font-family: var(--font-mono); font-size: 11.5px; margin-top: 8px; min-height: 14px; }
+  .form-msg.error{ color: var(--down); }
+  .form-msg.success{ color: var(--ok); }
+
+  /* ---------- incidents log ---------- */
+  .incidents-section{ margin-top: 40px; }
+  .section-title{
+    font-size: 13px; font-weight:700; letter-spacing:0.04em; text-transform:uppercase;
+    color: var(--muted); margin-bottom: 14px;
+  }
+  .incident-item{
+    display:flex; gap: 12px; padding: 12px 0; border-bottom: 1px solid var(--border);
+    font-size: 13px;
+  }
+  .incident-item:last-child{ border-bottom:none; }
+  .incident-sev{
+    font-family: var(--font-mono); font-size: 10px; padding: 2px 7px; border-radius: 4px;
+    height: fit-content; text-transform:uppercase; flex-shrink:0; margin-top:2px; font-weight:700;
+  }
+  .incident-sev.down{ background: var(--down-dim); color: var(--down); }
+  .incident-sev.degraded{ background: var(--warn-dim); color: var(--warn); }
+  .incident-body{ flex:1; }
+  .incident-summary{ color: var(--text); font-weight:500; }
+  .incident-time{ font-family: var(--font-mono); font-size: 11px; color: var(--dim); margin-top: 2px; }
+  .incident-resolved{ color: var(--ok); font-family: var(--font-mono); font-size:11px; }
+
+  .empty-state{ color: var(--dim); font-size: 13px; font-family: var(--font-mono); padding: 12px 0; }
+
+  /* ---------- toast / notification ---------- */
+  .toast{
+    position: fixed; bottom: 24px; right: 24px; z-index: 1000;
+    background: var(--panel-2); border: 1px solid var(--border);
+    color: var(--text); font-family: var(--font-mono); font-size: 12px;
+    padding: 12px 18px; border-radius: 8px; box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+    display:none; align-items:center; gap: 8px;
+    animation: slideUp 0.2s ease-out;
+  }
+  @keyframes slideUp{ from{ transform: translateY(10px); opacity:0; } to{ transform: translateY(0); opacity:1; } }
+  .toast.show{ display:flex; }
+  .toast.success{ border-color: var(--ok); }
+  .toast.error{ border-color: var(--down); }
+
+  footer{
+    margin-top: 56px; padding-top: 20px; border-top: 1px solid var(--border);
+    font-family: var(--font-mono); font-size: 11px; color: var(--dim);
+    display:flex; justify-content: space-between; flex-wrap:wrap; gap: 8px;
+  }
+
+  /* spinner */
+  .spin{ animation: spin 1s linear infinite; display:inline-block; }
+  @keyframes spin{ 100%{ transform: rotate(360deg); } }
+
+  @media (max-width: 640px){
+    .server-row{ flex-wrap: wrap; }
+    .server-stats{ gap: 14px; width: 100%; justify-content: flex-start; margin-top: 6px; padding-left: 44px; }
+    .sync-info{ text-align:left; }
+    header.top{ align-items: flex-start; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="top">
+    <div class="brand">
+      <div class="brand-mark">R</div>
+      <div>
+        <div class="brand-name">Relay Network Status</div>
+        <div class="brand-sub">Real V2Ray & Proxy Connectivity Monitor</div>
+      </div>
+    </div>
+    <div class="header-actions">
+      <button class="btn btn-primary" id="btnCheckNow">
+        <span id="checkIcon">⚡</span> <span id="checkText">Check Now</span>
+      </button>
+      <div class="sync-info">
+        Next cycle: <b id="countdown">--:--</b><br>
+        Updated: <span id="lastSync">—</span>
+      </div>
+    </div>
+  </header>
+
+  <div class="system-status-bar" id="sysStatusBar">
+    <div id="sysEngineInfo">Engine: Checking Xray status…</div>
+    <div id="sysWorkerInfo">Cycle: Every 30 mins</div>
+  </div>
+
+  <div class="banner" id="banner">
+    <div class="banner-dot pulsing" id="bannerDot"></div>
+    <div class="banner-text">
+      <div class="banner-title" id="bannerTitle">Loading network status…</div>
+      <div class="banner-sub" id="bannerSub">Connecting to monitor daemon</div>
+    </div>
+  </div>
+
+  <div class="controls-row">
+    <div class="filters" id="statusFilters">
+      <button class="filter-btn active" data-filter="all">All Servers</button>
+      <button class="filter-btn" data-filter="operational">Operational</button>
+      <button class="filter-btn" data-filter="degraded">Degraded</button>
+      <button class="filter-btn" data-filter="down">Down</button>
+    </div>
+  </div>
+
+  <div class="manage-panel">
+    <div class="manage-head" id="manageHead">
+      <div class="manage-title">⚙ Manage Subscriptions</div>
+      <div class="manage-toggle" id="manageToggle">show</div>
+    </div>
+    <div class="manage-body" id="manageBody">
+      <div id="subListContainer"><div class="empty-state">Loading subscriptions…</div></div>
+      <form class="add-sub-form" id="addSubForm">
+        <input type="text" name="name" placeholder="Name (e.g. VIP Subscription)" required>
+        <input type="url" name="url" placeholder="https://your-provider.com/sub-link" required>
+        <button class="btn btn-primary" type="submit">Add Subscription</button>
+      </form>
+      <div class="form-msg" id="formMsg"></div>
+    </div>
+  </div>
+
+  <div id="subs"></div>
+
+  <div class="incidents-section">
+    <div class="section-title">Recent Incidents</div>
+    <div id="incidents"><div class="empty-state">No incidents to show.</div></div>
+  </div>
+
+  <footer>
+    <span>Dual verification: TCP reachability + End-to-end Xray proxy tunnel test.</span>
+    <span id="genAt">—</span>
+  </footer>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// Dynamic API endpoint detection: defaults to same-origin /api, or localhost:8000/api if opened directly as file
+const API_BASE = window.RELAY_API_BASE || (
+  window.location.origin.startsWith("http")
+    ? (window.location.origin.replace(/\/$/, "") + "/api")
+    : "http://localhost:8000/api"
+);
+
+const STATUS_LABEL = { operational: "Operational", degraded: "Degraded", down: "Down", unknown: "Unknown" };
+let currentFilter = "all";
+let cachedSubs = [];
+let nextCheckSeconds = 30 * 60;
+
+function showToast(msg, type="success"){
+  const t = document.getElementById("toast");
+  t.className = `toast show ${type}`;
+  t.textContent = msg;
+  setTimeout(() => { t.className = "toast"; }, 4000);
+}
+
+function fmtTime(iso){
+  if(!iso) return "—";
+  const d = new Date(iso);
+  return d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+}
+
+function fmtRelative(iso){
+  if(!iso) return "never";
+  const diffMs = Date.now() - new Date(iso).getTime();
+  const mins = Math.round(diffMs / 60000);
+  if(mins < 1) return "just now";
+  if(mins < 60) return `${mins}m ago`;
+  return `${Math.round(mins/60)}h ago`;
+}
+
+function renderBanner(status, subs){
+  const banner = document.getElementById("banner");
+  const dot = document.getElementById("bannerDot");
+  const title = document.getElementById("bannerTitle");
+  const sub = document.getElementById("bannerSub");
+
+  banner.className = "banner state-" + status;
+  const total = subs.reduce((n, s) => n + s.servers.length, 0);
+  const down = subs.reduce((n, s) => n + s.servers.filter(x => x.status === "down").length, 0);
+  const degraded = subs.reduce((n, s) => n + s.servers.filter(x => x.status === "degraded").length, 0);
+
+  if(status === "operational"){
+    title.textContent = "All Systems Operational";
+    sub.textContent = `${total} server${total===1?"":"s"} active across ${subs.length} subscription${subs.length===1?"":"s"}`;
+  } else if(status === "degraded"){
+    title.textContent = "Partial Performance Degradation";
+    sub.textContent = `${degraded} server${degraded===1?"":"s"} degraded${down?`, ${down} down`:""} out of ${total}`;
+  } else if(status === "down"){
+    title.textContent = "Service Disruption Detected";
+    sub.textContent = `${down} server${down===1?"":"s"} failing real proxy checks out of ${total}`;
+  } else {
+    title.textContent = "Awaiting First Check";
+    sub.textContent = "No server check results recorded yet";
+  }
+}
+
+function historyBar(point){
+  const st = point.status || "unknown";
+  const div = document.createElement("div");
+  div.className = "hbar " + st;
+  const t = new Date(point.checked_at).toLocaleString([], { month:"short", day:"numeric", hour:"2-digit", minute:"2-digit" });
+  const lat = point.latency_ms ? `${Math.round(point.latency_ms)}ms` : (point.error ? `Error: ${point.error}` : "no response");
+  div.title = `${t} — ${STATUS_LABEL[st] || st} — ${lat}`;
+  return div;
+}
+
+function renderServer(server){
+  if(currentFilter !== "all" && server.status !== currentFilter){
+    return null;
+  }
+
+  const hasError = server.status === "down" || (server.last_error && server.status === "degraded");
+  const card = document.createElement("div");
+  card.className = "server-card" + (hasError ? " has-error" : "");
+
+  const row = document.createElement("div");
+  row.className = "server-row";
+  row.innerHTML = `
+    <div class="flag">${server.country_flag || "🏳️"}</div>
+    <div class="server-id">
+      <div class="server-name">${server.remark || server.country_name}
+        <span class="proto-badge">${server.protocol}</span>
+      </div>
+      <div class="server-meta">${server.country_name} · checked ${fmtRelative(server.last_checked_at)}</div>
+    </div>
+    <div class="server-stats">
+      <div class="stat">
+        <div class="stat-value">${server.latency_ms ? Math.round(server.latency_ms)+"ms" : "—"}</div>
+        <div class="stat-label">Proxy Latency</div>
+      </div>
+      <div class="stat">
+        <div class="stat-value">${server.tcp_latency_ms ? Math.round(server.tcp_latency_ms)+"ms" : "—"}</div>
+        <div class="stat-label">TCP Ping</div>
+      </div>
+      <div class="stat">
+        <div class="stat-value">${server.uptime_pct_24h}%</div>
+        <div class="stat-label">24h Uptime</div>
+      </div>
+    </div>
+    <div class="status-chip ${server.status}"><span class="dot"></span>${STATUS_LABEL[server.status] || server.status}</div>
+  `;
+  card.appendChild(row);
+
+  const strip = document.createElement("div");
+  strip.className = "history-strip";
+  const hist = server.history && server.history.length ? server.history : [];
+  hist.forEach(p => strip.appendChild(historyBar(p)));
+  card.appendChild(strip);
+
+  if(server.open_incident || server.last_error){
+    const note = document.createElement("div");
+    note.className = "error-note";
+    const incidentMsg = server.open_incident ? `⚠ Incident: ${server.open_incident.summary || "Degraded service"}` : "";
+    const errMsg = server.last_error ? `Error: ${server.last_error}` : "";
+    note.textContent = [incidentMsg, errMsg].filter(Boolean).join(" | ");
+    card.appendChild(note);
+  }
+
+  return card;
+}
+
+function renderSubs(subs){
+  cachedSubs = subs;
+  const container = document.getElementById("subs");
+  container.innerHTML = "";
+
+  subs.forEach(sub => {
+    const group = document.createElement("div");
+    group.className = "sub-group";
+    const head = document.createElement("div");
+    head.className = "sub-head";
+    head.innerHTML = `
+      <div class="sub-title-area">
+        <div class="sub-name">${sub.name}</div>
+        <button class="sub-sync-btn" data-sub-id="${sub.id}">⚡ Sync & Check</button>
+      </div>
+      <div class="sub-status-pill ${sub.status}">${STATUS_LABEL[sub.status] || sub.status}</div>
+    `;
+    head.querySelector(".sub-sync-btn").addEventListener("click", () => syncSingleSubscription(sub.id, sub.name));
+    group.appendChild(head);
+
+    let renderedCount = 0;
+    sub.servers.forEach(server => {
+      const el = renderServer(server);
+      if(el){
+        group.appendChild(el);
+        renderedCount++;
+      }
+    });
+
+    if(sub.servers.length === 0){
+      const empty = document.createElement("div");
+      empty.className = "empty-state";
+      empty.textContent = "No servers discovered in this subscription.";
+      group.appendChild(empty);
+    } else if(renderedCount === 0 && currentFilter !== "all"){
+      const empty = document.createElement("div");
+      empty.className = "empty-state";
+      empty.textContent = `No servers with status "${currentFilter}".`;
+      group.appendChild(empty);
+    }
+
+    container.appendChild(group);
+  });
+}
+
+function renderIncidents(incidents){
+  const container = document.getElementById("incidents");
+  container.innerHTML = "";
+  if(!incidents || incidents.length === 0){
+    container.innerHTML = '<div class="empty-state">No active or recent incidents.</div>';
+    return;
+  }
+  incidents.forEach(inc => {
+    const item = document.createElement("div");
+    item.className = "incident-item";
+    item.innerHTML = `
+      <div class="incident-sev ${inc.severity}">${inc.severity}</div>
+      <div class="incident-body">
+        <div class="incident-summary">${inc.summary || "Connectivity issue detected"}</div>
+        <div class="incident-time">
+          Started ${fmtTime(inc.started_at)}
+          ${inc.resolved_at ? ` · <span class="incident-resolved">Resolved ${fmtTime(inc.resolved_at)}</span>` : " · ongoing"}
+        </div>
+      </div>
+    `;
+    container.appendChild(item);
+  });
+}
+
+async function loadSystemInfo(){
+  try{
+    const res = await fetch(`${API_BASE}/system-info`);
+    if(res.ok){
+      const data = await res.json();
+      const eng = document.getElementById("sysEngineInfo");
+      if(data.xray_installed){
+        eng.innerHTML = `Engine: <span class="sys-badge">Xray Core Active</span> <span style="color:var(--dim)">(${data.xray_version || 'ready'})</span>`;
+      } else {
+        eng.innerHTML = `Engine: <span class="sys-badge warn">Xray Missing</span> (TCP checks only)`;
+      }
+    }
+  }catch(e){}
+}
+
+function updateCountdown(){
+  const el = document.getElementById("countdown");
+  nextCheckSeconds = Math.max(0, nextCheckSeconds - 1);
+  const m = String(Math.floor(nextCheckSeconds / 60)).padStart(2, "0");
+  const s = String(nextCheckSeconds % 60).padStart(2, "0");
+  el.textContent = `${m}:${s}`;
+}
+setInterval(updateCountdown, 1000);
+
+async function loadStatus(){
+  try{
+    const res = await fetch(`${API_BASE}/status`);
+    if(!res.ok) throw new Error("bad response");
+    const data = await res.json();
+    renderBanner(data.overall_status, data.subscriptions);
+    renderSubs(data.subscriptions);
+    renderIncidents(data.recent_incidents);
+    document.getElementById("lastSync").textContent = fmtTime(data.generated_at);
+    document.getElementById("genAt").textContent = "Generated " + new Date(data.generated_at).toLocaleString();
+    nextCheckSeconds = 30 * 60;
+  }catch(err){
+    console.warn("API unreachable:", err);
+  }
+}
+
+// Trigger immediate check cycle
+document.getElementById("btnCheckNow").addEventListener("click", async () => {
+  const btn = document.getElementById("btnCheckNow");
+  const icon = document.getElementById("checkIcon");
+  const txt = document.getElementById("checkText");
+
+  btn.disabled = true;
+  icon.innerHTML = '<span class="spin">⏳</span>';
+  txt.textContent = "Checking...";
+
+  try{
+    const res = await fetch(`${API_BASE}/check-now`, { method: "POST" });
+    if(!res.ok) throw new Error("Trigger failed");
+    showToast("Monitoring cycle started! Updating results...");
+    // Poll for status update
+    setTimeout(loadStatus, 2000);
+    setTimeout(loadStatus, 5000);
+    setTimeout(loadStatus, 10000);
+  }catch(e){
+    showToast("Could not trigger check: " + e.message, "error");
+  }finally{
+    setTimeout(() => {
+      btn.disabled = false;
+      icon.textContent = "⚡";
+      txt.textContent = "Check Now";
+    }, 2500);
+  }
+});
+
+async function syncSingleSubscription(subId, name){
+  showToast(`Syncing & checking "${name}"...`);
+  try{
+    const res = await fetch(`${API_BASE}/subscriptions/${subId}/sync`, { method: "POST" });
+    if(res.ok){
+      showToast(`Subscription "${name}" checked successfully!`);
+      loadStatus();
+    }
+  }catch(e){
+    showToast(`Failed to sync subscription: ${e.message}`, "error");
+  }
+}
+
+// Filter buttons
+document.querySelectorAll(".filter-btn").forEach(btn => {
+  btn.addEventListener("click", (e) => {
+    document.querySelectorAll(".filter-btn").forEach(b => b.classList.remove("active"));
+    btn.classList.add("active");
+    currentFilter = btn.getAttribute("data-filter");
+    if(cachedSubs.length) renderSubs(cachedSubs);
+  });
+});
+
+// Manage subscriptions panel
+const manageHead = document.getElementById("manageHead");
+const manageBody = document.getElementById("manageBody");
+const manageToggle = document.getElementById("manageToggle");
+manageHead.addEventListener("click", () => {
+  const open = manageBody.classList.toggle("open");
+  manageToggle.textContent = open ? "hide" : "show";
+  if(open) loadSubscriptionList();
+});
+
+async function loadSubscriptionList(){
+  const container = document.getElementById("subListContainer");
+  try{
+    const res = await fetch(`${API_BASE}/subscriptions`);
+    const subs = await res.json();
+    if(!subs.length){
+      container.innerHTML = '<div class="empty-state">No subscriptions registered yet — add one below.</div>';
+      return;
+    }
+    container.innerHTML = "";
+    subs.forEach(s => {
+      const row = document.createElement("div");
+      row.className = "sub-list-item";
+      row.innerHTML = `
+        <div>
+          <div class="sub-list-name">${s.name}</div>
+          <div class="sub-list-meta">${s.server_count} server${s.server_count===1?"":"s"} · ${s.url}</div>
+        </div>
+        <button class="sub-remove-btn" data-id="${s.id}">Remove</button>
+      `;
+      row.querySelector("button").addEventListener("click", () => removeSubscription(s.id));
+      container.appendChild(row);
+    });
+  }catch(err){
+    container.innerHTML = '<div class="empty-state">Could not reach API to list subscriptions.</div>';
+  }
+}
+
+async function removeSubscription(id){
+  if(!confirm("Stop monitoring this subscription?")) return;
+  await fetch(`${API_BASE}/subscriptions/${id}`, { method: "DELETE" });
+  loadSubscriptionList();
+  loadStatus();
+}
+
+document.getElementById("addSubForm").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const form = e.target;
+  const btn = form.querySelector("button");
+  const msg = document.getElementById("formMsg");
+  const name = form.name.value.trim();
+  const url = form.url.value.trim();
+
+  btn.disabled = true;
+  msg.className = "form-msg";
+  msg.textContent = "Adding and discovering servers...";
+
+  try{
+    const res = await fetch(`${API_BASE}/subscriptions`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name, url }),
+    });
+    if(!res.ok){
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.detail || "Failed to add subscription");
+    }
+    msg.className = "form-msg success";
+    msg.textContent = `Added "${name}"! Checking servers in background...`;
+    form.reset();
+    loadSubscriptionList();
+    setTimeout(loadStatus, 2000);
+    setTimeout(loadStatus, 5000);
+  }catch(err){
+    msg.className = "form-msg error";
+    msg.textContent = err.message;
+  }finally{
+    btn.disabled = false;
+  }
+});
+
+// Initial startup
+loadSystemInfo();
+loadStatus();
+setInterval(loadStatus, 30000);
+</script>
+</body>
+</html>

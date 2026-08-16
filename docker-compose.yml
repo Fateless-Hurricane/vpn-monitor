@@ -1,0 +1,22 @@
+services:
+  relay:
+
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    ports:
+      - "8000:8000"
+    environment:
+      - DATABASE_URL=sqlite:////data/vpn_monitor.db
+      - XRAY_BINARY_PATH=/usr/local/bin/xray
+      - CHECK_INTERVAL_MINUTES=30
+      - CHECK_CONCURRENCY=5
+      - DEGRADED_LATENCY_MS=250
+      - FAILURES_BEFORE_INCIDENT=2
+    volumes:
+      - db_data:/data
+    restart: unless-stopped
+
+volumes:
+  db_data:
+
