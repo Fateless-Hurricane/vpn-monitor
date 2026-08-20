@@ -139,13 +139,22 @@ async def proxy_check(proxy: ParsedProxy) -> tuple[bool, Optional[float], Option
 
         port_opened = await _wait_port_open(local_port, XRAY_STARTUP_TIMEOUT)
         if not port_opened:
-            # Try to grab stderr to see why it didn't start
             err_msg = "xray process failed to bind local SOCKS port"
-            if proc.returncode is not None:
-                _, stderr = await proc.communicate()
-                err_text = stderr.decode(errors="ignore").strip()
-                if err_text:
-                    err_msg = f"xray exited early: {err_text[:200]}"
+            try:
+                if proc.returncode is None:
+                    proc.terminate()
+                stdout_data, stderr_data = await asyncio.wait_for(proc.communicate(), timeout=1.5)
+                combined = (stdout_data.decode(errors="ignore") + "\n" + stderr_data.decode(errors="ignore")).strip()
+                for line in combined.splitlines():
+                    clean_line = line.strip()
+                    if any(k in clean_line.lower() for k in ["failed to start", "failed to load", "unknown transport", "fatal", "panic"]):
+                        err_msg = clean_line
+                        break
+                else:
+                    if combined:
+                        err_msg = combined.splitlines()[-1][:200]
+            except Exception:
+                pass
             return False, None, err_msg
 
         proxy_url = f"socks5://127.0.0.1:{local_port}"
@@ -158,10 +167,16 @@ async def proxy_check(proxy: ParsedProxy) -> tuple[bool, Optional[float], Option
             return True, round(elapsed, 1), None
         return False, round(elapsed, 1), f"unexpected HTTP status {resp.status_code}"
 
+    except httpx.ConnectError:
+        return False, None, "Proxy handshake / connection failed"
+    except httpx.TimeoutException:
+        return False, None, f"Proxy request timed out after {PROXY_REQUEST_TIMEOUT}s"
     except httpx.HTTPError as exc:
-        return False, None, f"proxy HTTP request error: {exc}"
+        msg = str(exc).strip() or exc.__class__.__name__
+        return False, None, f"Proxy HTTP error: {msg}"
     except Exception as exc:  # noqa: BLE001
-        return False, None, str(exc)
+        msg = str(exc).strip() or exc.__class__.__name__
+        return False, None, f"Proxy check error: {msg}"
     finally:
         if proc is not None and proc.returncode is None:
             proc.terminate()

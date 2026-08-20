@@ -3,792 +3,1689 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Relay — V2Ray & VPN Network Status</title>
+<title>Relay — Live Network Status</title>
+<meta name="description" content="Real-time proxy node connectivity, latency telemetry, and network health monitoring.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
-  :root{
-    --bg: #0a0f1a;
-    --panel: #0f1729;
-    --panel-2: #131d33;
-    --border: #202c47;
-    --border-hover: #33446b;
-    --text: #dbe4f3;
-    --muted: #7c8aa8;
-    --dim: #4c597a;
-    --signal: #4fd1c5;
-    --signal-dim: #1c4a49;
-    --ok: #34d399;
-    --ok-dim: #0f3d2e;
-    --warn: #fbbf24;
-    --warn-dim: #3d3110;
-    --down: #f87171;
-    --down-dim: #3d1616;
+  :root {
+    --bg: #07090e;
+    --surface: #0e131f;
+    --surface-hover: #141c2e;
+    --surface-elevated: #182238;
+    --border: rgba(255, 255, 255, 0.08);
+    --border-strong: rgba(255, 255, 255, 0.15);
+    --border-accent: rgba(16, 185, 129, 0.3);
+    
+    --text-primary: #f1f5f9;
+    --text-secondary: #94a3b8;
+    --text-muted: #64748b;
+    --text-dim: #475569;
+
+    --brand: #10b981;
+    --brand-glow: rgba(16, 185, 129, 0.2);
+    
+    --ok: #10b981;
+    --ok-bg: rgba(16, 185, 129, 0.12);
+    --ok-border: rgba(16, 185, 129, 0.25);
+    --ok-glow: rgba(16, 185, 129, 0.35);
+
+    --warn: #f59e0b;
+    --warn-bg: rgba(245, 158, 11, 0.12);
+    --warn-border: rgba(245, 158, 11, 0.25);
+    --warn-glow: rgba(245, 158, 11, 0.35);
+
+    --down: #f43f5e;
+    --down-bg: rgba(244, 63, 94, 0.12);
+    --down-border: rgba(244, 63, 94, 0.25);
+    --down-glow: rgba(244, 63, 94, 0.35);
+
     --unknown: #64748b;
+    --unknown-bg: rgba(100, 116, 139, 0.12);
+
+    --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
     --font-mono: 'IBM Plex Mono', ui-monospace, monospace;
-    --font-sans: 'Inter', -apple-system, sans-serif;
+    --radius-sm: 6px;
+    --radius-md: 10px;
+    --radius-lg: 14px;
+    --radius-full: 9999px;
   }
 
-  *{ box-sizing: border-box; margin: 0; padding: 0; }
-  html{ scroll-behavior: smooth; }
-  body{
-    background: var(--bg);
-    background-image:
-      radial-gradient(ellipse 900px 500px at 15% -10%, rgba(79,209,197,0.08), transparent 60%),
-      radial-gradient(ellipse 700px 500px at 100% 0%, rgba(79,209,197,0.05), transparent 55%);
-    color: var(--text);
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html { scroll-behavior: smooth; }
+  body {
+    background-color: var(--bg);
+    background-image: 
+      radial-gradient(circle at 50% 0%, rgba(16, 185, 129, 0.08) 0%, transparent 50%),
+      radial-gradient(circle at 100% 20%, rgba(59, 130, 246, 0.04) 0%, transparent 40%),
+      radial-gradient(circle at 0% 50%, rgba(16, 185, 129, 0.03) 0%, transparent 40%);
+    color: var(--text-primary);
     font-family: var(--font-sans);
     line-height: 1.5;
     min-height: 100vh;
+    -webkit-font-smoothing: antialiased;
   }
 
-  .wrap{ max-width: 960px; margin: 0 auto; padding: 40px 20px 80px; }
-
-  /* ---------- header ---------- */
-  header.top{
-    display:flex; align-items:center; justify-content:space-between;
-    margin-bottom: 32px; gap: 16px; flex-wrap: wrap;
+  .container {
+    max-width: 1020px;
+    margin: 0 auto;
+    padding: 36px 20px 80px;
   }
-  .brand{ display:flex; align-items:center; gap: 12px; }
-  .brand-mark{
-    width: 36px; height: 36px; border-radius: 9px;
-    background: linear-gradient(135deg, var(--signal), #2b7a76);
-    display:flex; align-items:center; justify-content:center;
-    font-family: var(--font-mono); font-weight:700; font-size: 16px; color:#04120f;
-    box-shadow: 0 0 20px rgba(79,209,197,0.25);
-    flex-shrink:0;
-  }
-  .brand-name{ font-weight:700; font-size: 18px; letter-spacing: 0.01em; }
-  .brand-sub{ font-family: var(--font-mono); font-size: 11.5px; color: var(--dim); margin-top:2px; display:flex; align-items:center; gap:8px; }
 
-  .header-actions{ display:flex; align-items:center; gap: 10px; flex-wrap: wrap; }
-  .btn{
-    font-family: var(--font-mono); font-size: 12px; font-weight:600;
-    padding: 8px 14px; border-radius: 7px; cursor: pointer;
-    border: 1px solid var(--border); background: var(--panel-2); color: var(--text);
-    display:inline-flex; align-items:center; gap:6px; transition: all 0.15s ease;
-  }
-  .btn:hover{ border-color: var(--signal); background: rgba(79,209,197,0.1); }
-  .btn:disabled{ opacity:0.5; cursor:not-allowed; }
-  .btn-primary{ background: var(--signal); color: #04120f; border:none; }
-  .btn-primary:hover{ background: #38b2ac; }
-
-  .sync-info{ font-family: var(--font-mono); font-size: 11.5px; color: var(--muted); text-align:right; }
-  .sync-info b{ color: var(--text); font-weight: 600; }
-
-  /* ---------- system status bar ---------- */
-  .system-status-bar{
-    display:flex; align-items:center; justify-content:space-between;
-    background: rgba(19, 29, 51, 0.6); border: 1px solid var(--border);
-    border-radius: 8px; padding: 8px 14px; margin-bottom: 24px;
-    font-family: var(--font-mono); font-size: 11.5px; color: var(--muted);
-    flex-wrap: wrap; gap: 10px;
-  }
-  .sys-badge{
-    display:inline-flex; align-items:center; gap:6px; padding: 2px 8px; border-radius: 4px;
-    background: rgba(52, 211, 153, 0.15); color: var(--ok); font-weight: 500;
-  }
-  .sys-badge.warn{ background: rgba(251, 191, 36, 0.15); color: var(--warn); }
-  .sys-badge.down{ background: rgba(248, 113, 113, 0.15); color: var(--down); }
-
-  /* ---------- overall banner ---------- */
-  .banner{
-    border-radius: 12px;
-    border: 1px solid var(--border);
-    background: var(--panel);
-    padding: 22px 24px;
-    display:flex; align-items:center; gap:18px;
+  /* ---------- Header ---------- */
+  header.top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
     margin-bottom: 28px;
-    position: relative;
-    overflow:hidden;
+    gap: 16px;
+    flex-wrap: wrap;
   }
-  .banner::before{
-    content:"";
-    position:absolute; inset:0;
-    background: linear-gradient(90deg, transparent, rgba(79,209,197,0.25), transparent);
-    width: 40%;
-    animation: sweep 5s ease-in-out infinite;
-    opacity: 0.5;
+  .brand {
+    display: flex;
+    align-items: center;
+    gap: 14px;
   }
-  @keyframes sweep{
-    0%{ transform: translateX(-120%); }
-    100%{ transform: translateX(320%); }
+  .brand-logo {
+    width: 38px;
+    height: 38px;
+    border-radius: var(--radius-md);
+    background: linear-gradient(135deg, #10b981, #047857);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: var(--font-mono);
+    font-weight: 800;
+    font-size: 17px;
+    color: #ffffff;
+    box-shadow: 0 0 24px var(--brand-glow);
+    flex-shrink: 0;
   }
-  .banner.state-degraded::before{ background: linear-gradient(90deg, transparent, rgba(251,191,36,0.3), transparent); }
-  .banner.state-down::before{ background: linear-gradient(90deg, transparent, rgba(248,113,113,0.3), transparent); }
-
-  .banner-dot{
-    width: 16px; height: 16px; border-radius: 50%;
-    background: var(--ok); flex-shrink:0; position:relative; z-index:1;
-    box-shadow: 0 0 0 4px var(--ok-dim);
+  .brand-title {
+    font-size: 18px;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    display: flex;
+    align-items: center;
+    gap: 8px;
   }
-  .banner-dot.pulsing::after{
-    content:""; position:absolute; inset:-4px; border-radius:50%;
-    border: 2px solid var(--ok); opacity:0.6;
-    animation: ping 1.8s cubic-bezier(0,0,0.2,1) infinite;
+  .brand-tag {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    padding: 2px 6px;
+    border-radius: var(--radius-full);
+    background: var(--ok-bg);
+    color: var(--ok);
+    border: 1px solid var(--ok-border);
   }
-  @keyframes ping{
-    0%{ transform: scale(1); opacity:0.7; }
-    100%{ transform: scale(2.2); opacity:0; }
-  }
-  .banner.state-degraded .banner-dot{ background: var(--warn); box-shadow: 0 0 0 4px var(--warn-dim); }
-  .banner.state-degraded .banner-dot::after{ border-color: var(--warn); }
-  .banner.state-down .banner-dot{ background: var(--down); box-shadow: 0 0 0 4px var(--down-dim); }
-  .banner.state-down .banner-dot::after{ border-color: var(--down); }
-  .banner.state-unknown .banner-dot{ background: var(--unknown); box-shadow: 0 0 0 4px rgba(100,116,139,0.2); }
-
-  .banner-text{ position:relative; z-index:1; flex:1; }
-  .banner-title{ font-size: 18px; font-weight:700; }
-  .banner-sub{ font-size:13.5px; color: var(--muted); margin-top:2px; }
-
-  /* ---------- filter & manage controls ---------- */
-  .controls-row{
-    display:flex; align-items:center; justify-content:space-between;
-    margin-bottom: 20px; gap: 12px; flex-wrap: wrap;
-  }
-  .filters{ display:flex; gap: 6px; flex-wrap: wrap; }
-  .filter-btn{
-    font-family: var(--font-mono); font-size: 11px; font-weight:600;
-    padding: 4px 10px; border-radius: 6px; cursor: pointer;
-    border: 1px solid var(--border); background: var(--panel); color: var(--muted);
-  }
-  .filter-btn.active{
-    background: var(--panel-2); border-color: var(--signal); color: var(--signal);
+  .brand-desc {
+    font-size: 12.5px;
+    color: var(--text-secondary);
+    margin-top: 1px;
   }
 
-  /* ---------- subscription group ---------- */
-  .sub-group{ margin-bottom: 28px; }
-  .sub-head{
-    display:flex; align-items:center; justify-content:space-between;
-    padding: 6px 4px 14px;
+  .header-actions {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
   }
-  .sub-title-area{ display:flex; align-items:center; gap: 10px; }
-  .sub-name{ font-size: 14px; font-weight:700; letter-spacing:0.02em; text-transform:uppercase; color: var(--text); }
-  .sub-sync-btn{
-    font-family: var(--font-mono); font-size: 10px; padding: 2px 7px; border-radius: 4px;
-    background: var(--panel-2); border: 1px solid var(--border); color: var(--muted);
+
+  .btn {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    font-weight: 600;
+    padding: 8px 14px;
+    border-radius: var(--radius-sm);
     cursor: pointer;
-  }
-  .sub-sync-btn:hover{ border-color: var(--signal); color: var(--signal); }
-  .sub-status-pill{
-    font-family: var(--font-mono); font-size: 11px; padding: 3px 10px; border-radius: 20px;
-    border:1px solid var(--border); color: var(--ok); background: var(--ok-dim); font-weight:500;
-  }
-  .sub-status-pill.degraded{ color: var(--warn); background: var(--warn-dim); }
-  .sub-status-pill.down{ color: var(--down); background: var(--down-dim); }
-  .sub-status-pill.unknown{ color: var(--unknown); background: rgba(100,116,139,0.15); }
-
-  .server-card{
-    background: var(--panel);
     border: 1px solid var(--border);
-    border-radius: 10px;
-    margin-bottom: 10px;
+    background: var(--surface);
+    color: var(--text-primary);
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+    user-select: none;
+    text-decoration: none;
+  }
+  .btn:hover {
+    background: var(--surface-hover);
+    border-color: var(--border-strong);
+    transform: translateY(-1px);
+  }
+  .btn:active {
+    transform: translateY(0);
+  }
+  .btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    transform: none;
+  }
+  .btn-primary {
+    background: var(--brand);
+    color: #041a14;
+    border-color: transparent;
+  }
+  .btn-primary:hover {
+    background: #059669;
+    color: #ffffff;
+    border-color: transparent;
+    box-shadow: 0 0 16px var(--brand-glow);
+  }
+  .btn-admin {
+    background: rgba(255, 255, 255, 0.05);
+    border-color: var(--border);
+    color: var(--text-secondary);
+  }
+  .btn-admin:hover {
+    color: var(--text-primary);
+    border-color: var(--border-strong);
+  }
+  .btn-danger {
+    background: var(--down-bg);
+    color: var(--down);
+    border-color: var(--down-border);
+  }
+  .btn-danger:hover {
+    background: rgba(244, 63, 94, 0.2);
+  }
+
+  /* ---------- Admin Bar (Visible when Authenticated) ---------- */
+  .admin-bar {
+    display: none;
+    background: linear-gradient(90deg, rgba(16, 185, 129, 0.12), rgba(59, 130, 246, 0.08));
+    border: 1px solid var(--border-accent);
+    border-radius: var(--radius-md);
+    padding: 10px 16px;
+    margin-bottom: 24px;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+  .admin-bar.active {
+    display: flex;
+  }
+  .admin-bar-info {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 13px;
+    font-weight: 500;
+  }
+  .admin-badge {
+    background: var(--brand);
+    color: #04120f;
+    font-family: var(--font-mono);
+    font-size: 10.5px;
+    font-weight: 700;
+    padding: 2px 8px;
+    border-radius: var(--radius-full);
+    text-transform: uppercase;
+  }
+  .admin-bar-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  /* ---------- Hero Status Banner (Vercel Style) ---------- */
+  .hero-banner {
+    border-radius: var(--radius-lg);
+    background: var(--surface);
+    border: 1px solid var(--border);
+    padding: 26px 28px;
+    margin-bottom: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    position: relative;
     overflow: hidden;
+    gap: 20px;
+  }
+  .hero-banner::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.03), transparent);
+    animation: shine 6s ease-in-out infinite;
+    pointer-events: none;
+  }
+  @keyframes shine {
+    0% { transform: translateX(-100%); }
+    100% { transform: translateX(200%); }
+  }
+  .hero-status-left {
+    display: flex;
+    align-items: center;
+    gap: 18px;
+  }
+  .status-pulse-ring {
+    position: relative;
+    width: 22px;
+    height: 22px;
+    flex-shrink: 0;
+  }
+  .pulse-center {
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    position: absolute;
+    top: 4px;
+    left: 4px;
+    background: var(--ok);
+    box-shadow: 0 0 12px var(--ok-glow);
+  }
+  .pulse-wave {
+    position: absolute;
+    inset: 0;
+    border-radius: 50%;
+    border: 2px solid var(--ok);
+    opacity: 0.6;
+    animation: pulseWave 2s cubic-bezier(0, 0, 0.2, 1) infinite;
+  }
+  @keyframes pulseWave {
+    0% { transform: scale(0.6); opacity: 0.9; }
+    100% { transform: scale(2.2); opacity: 0; }
+  }
+
+  .hero-banner.state-degraded .pulse-center { background: var(--warn); box-shadow: 0 0 12px var(--warn-glow); }
+  .hero-banner.state-degraded .pulse-wave { border-color: var(--warn); }
+  .hero-banner.state-down .pulse-center { background: var(--down); box-shadow: 0 0 12px var(--down-glow); }
+  .hero-banner.state-down .pulse-wave { border-color: var(--down); }
+  .hero-banner.state-unknown .pulse-center { background: var(--unknown); box-shadow: none; }
+  .hero-banner.state-unknown .pulse-wave { display: none; }
+
+  .hero-title {
+    font-size: 20px;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    color: var(--text-primary);
+  }
+  .hero-subtitle {
+    font-size: 13px;
+    color: var(--text-secondary);
+    margin-top: 2px;
+  }
+  .hero-meta {
+    text-align: right;
+    font-family: var(--font-mono);
+    font-size: 11.5px;
+    color: var(--text-muted);
+    flex-shrink: 0;
+  }
+  .hero-meta b {
+    color: var(--text-primary);
+    font-weight: 600;
+  }
+
+  /* ---------- Summary Metric Cards (Vercel Grid) ---------- */
+  .metrics-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 12px;
+    margin-bottom: 32px;
+  }
+  .metric-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    padding: 16px 18px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    transition: border-color 0.15s ease;
+  }
+  .metric-card:hover {
+    border-color: var(--border-strong);
+  }
+  .metric-label {
+    font-size: 11.5px;
+    font-weight: 500;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+  .metric-value {
+    font-family: var(--font-mono);
+    font-size: 22px;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin: 8px 0 2px;
+    display: flex;
+    align-items: baseline;
+    gap: 6px;
+  }
+  .metric-sub {
+    font-size: 11px;
+    color: var(--text-secondary);
+  }
+
+  /* ---------- Controls / Filter Bar ---------- */
+  .filter-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 20px;
+    flex-wrap: wrap;
+  }
+  .filter-tabs {
+    display: flex;
+    gap: 6px;
+    background: var(--surface);
+    padding: 4px;
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--border);
+  }
+  .tab-btn {
+    font-family: var(--font-mono);
+    font-size: 11.5px;
+    font-weight: 500;
+    padding: 5px 12px;
+    border-radius: 4px;
+    background: transparent;
+    color: var(--text-muted);
+    border: none;
+    cursor: pointer;
     transition: all 0.15s ease;
   }
-  .server-card:hover{ border-color: var(--border-hover); transform: translateY(-1px); }
+  .tab-btn:hover {
+    color: var(--text-primary);
+  }
+  .tab-btn.active {
+    background: var(--surface-elevated);
+    color: var(--text-primary);
+    font-weight: 600;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+  }
 
-  .server-row{
-    display:flex; align-items:center; gap: 14px;
+  .search-box {
+    display: flex;
+    align-items: center;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 6px 12px;
+    gap: 8px;
+    min-width: 220px;
+  }
+  .search-box input {
+    background: transparent;
+    border: none;
+    outline: none;
+    color: var(--text-primary);
+    font-size: 12.5px;
+    width: 100%;
+  }
+  .search-box input::placeholder {
+    color: var(--text-dim);
+  }
+
+  /* ---------- Subscriptions & Node Cards ---------- */
+  .subscription-block {
+    margin-bottom: 32px;
+  }
+  .subscription-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 4px 14px;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 12px;
+  }
+  .subscription-title {
+    font-size: 14px;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+    color: var(--text-primary);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .node-count-badge {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    font-weight: 500;
+    color: var(--text-muted);
+    background: var(--surface-elevated);
+    padding: 2px 8px;
+    border-radius: var(--radius-full);
+  }
+  .sub-status-chip {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    font-weight: 600;
+    padding: 3px 10px;
+    border-radius: var(--radius-full);
+    text-transform: capitalize;
+  }
+  .sub-status-chip.operational { background: var(--ok-bg); color: var(--ok); border: 1px solid var(--ok-border); }
+  .sub-status-chip.degraded { background: var(--warn-bg); color: var(--warn); border: 1px solid var(--warn-border); }
+  .sub-status-chip.down { background: var(--down-bg); color: var(--down); border: 1px solid var(--down-border); }
+  .sub-status-chip.unknown { background: var(--unknown-bg); color: var(--unknown); }
+
+  /* Node Card */
+  .node-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    margin-bottom: 10px;
+    overflow: hidden;
+    transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+  .node-card:hover {
+    border-color: var(--border-strong);
+    background: var(--surface-hover);
+    transform: translateY(-1px);
+  }
+
+  .node-main {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
     padding: 14px 18px;
+    gap: 16px;
+  }
+  .node-info {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    min-width: 0;
+    flex: 1 1 auto;
+  }
+  .node-flag {
+    font-size: 22px;
+    line-height: 1;
+    width: 28px;
+    text-align: center;
+    flex-shrink: 0;
+  }
+  .node-details {
+    min-width: 0;
+  }
+  .node-name {
+    font-size: 13.5px;
+    font-weight: 600;
+    color: var(--text-primary);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .proto-tag {
+    font-family: var(--font-mono);
+    font-size: 9.5px;
+    font-weight: 700;
+    text-transform: uppercase;
+    padding: 1px 6px;
+    border-radius: 4px;
+    background: rgba(255, 255, 255, 0.06);
+    color: var(--text-secondary);
+    border: 1px solid var(--border);
+    letter-spacing: 0.03em;
+  }
+  .node-meta {
+    font-size: 11.5px;
+    color: var(--text-muted);
+    margin-top: 2px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .node-telemetry {
+    display: flex;
+    align-items: center;
+    gap: 22px;
+    flex-shrink: 0;
+  }
+  .stat-group {
+    text-align: right;
+  }
+  .stat-val {
+    font-family: var(--font-mono);
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-primary);
+  }
+  .stat-val.offline {
+    color: var(--down);
+  }
+  .stat-lbl {
+    font-size: 9.5px;
+    color: var(--text-dim);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    margin-top: 1px;
+  }
+
+  .status-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    font-weight: 600;
+    padding: 4px 10px;
+    border-radius: var(--radius-sm);
+    text-transform: capitalize;
+    flex-shrink: 0;
+    min-width: 96px;
+    justify-content: center;
+  }
+  .status-badge .dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: currentColor;
+  }
+  .status-badge.operational { background: var(--ok-bg); color: var(--ok); border: 1px solid var(--ok-border); }
+  .status-badge.degraded { background: var(--warn-bg); color: var(--warn); border: 1px solid var(--warn-border); }
+  .status-badge.down { background: var(--down-bg); color: var(--down); border: 1px solid var(--down-border); }
+  .status-badge.unknown { background: var(--unknown-bg); color: var(--unknown); border: 1px solid var(--border); }
+
+  /* History Strip (90-day style) */
+  .history-container {
+    padding: 4px 18px 14px;
+  }
+  .history-bars {
+    display: flex;
+    align-items: flex-end;
+    gap: 2px;
+    height: 24px;
+    position: relative;
+  }
+  .history-bar {
+    flex: 1 1 auto;
+    height: 100%;
+    min-width: 3px;
+    border-radius: 2px;
+    background: var(--ok);
+    opacity: 0.8;
+    transition: transform 0.1s ease, opacity 0.1s ease;
     cursor: pointer;
   }
-  .flag{ font-size: 22px; line-height:1; flex-shrink:0; width: 30px; text-align:center; }
-
-  .server-id{ min-width: 0; flex: 1 1 auto; }
-  .server-name{ font-size: 14px; font-weight: 600; display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
-  .proto-badge{
-    font-family: var(--font-mono); font-size: 10px; padding: 1px 6px; border-radius: 4px;
-    background: var(--panel-2); color: var(--signal); border: 1px solid var(--signal-dim);
-    text-transform: uppercase; letter-spacing: 0.03em; font-weight:600;
+  .history-bar:hover {
+    opacity: 1;
+    transform: scaleY(1.2);
   }
-  .server-meta{ font-family: var(--font-mono); font-size: 11.5px; color: var(--dim); margin-top: 3px; }
+  .history-bar.degraded { background: var(--warn); }
+  .history-bar.down { background: var(--down); }
+  .history-bar.unknown { background: rgba(255, 255, 255, 0.08); opacity: 0.4; }
 
-  .server-stats{ display:flex; align-items:center; gap: 20px; flex-shrink:0; }
-  .stat{ text-align:right; min-width: 60px; }
-  .stat-value{ font-family: var(--font-mono); font-size: 13.5px; font-weight:600; }
-  .stat-label{ font-size: 10px; color: var(--dim); text-transform:uppercase; letter-spacing:0.04em; margin-top:1px;}
-
-  .status-chip{
-    display:flex; align-items:center; gap:6px;
-    font-family: var(--font-mono); font-size: 12px; font-weight:600;
-    padding: 5px 12px; border-radius: 6px; flex-shrink:0;
-    background: var(--ok-dim); color: var(--ok);
+  .history-caption {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 6px;
+    font-size: 10.5px;
+    font-family: var(--font-mono);
+    color: var(--text-dim);
   }
-  .status-chip .dot{ width:6px; height:6px; border-radius:50%; background: currentColor; }
-  .status-chip.degraded{ background: var(--warn-dim); color: var(--warn); }
-  .status-chip.down{ background: var(--down-dim); color: var(--down); }
-  .status-chip.unknown{ background: rgba(100,116,139,0.15); color: var(--unknown); }
 
-  /* history bars */
-  .history-strip{
-    display:flex; align-items:flex-end; gap: 2px;
-    padding: 0 18px 14px;
-    height: 32px;
-  }
-  .hbar{
-    flex: 1 1 auto; min-width: 3px; height: 100%;
-    background: var(--ok); border-radius: 2px; opacity: 0.85;
-    cursor: pointer; position: relative; transition: transform 0.1s ease;
-  }
-  .hbar.degraded{ background: var(--warn); }
-  .hbar.down{ background: var(--down); }
-  .hbar.unknown{ background: var(--dim); opacity: 0.35; }
-  .hbar:hover{ opacity: 1; transform: scaleY(1.15); }
-
-  /* expandable incident / error note */
-  .error-note{
-    display: none;
-    font-family: var(--font-mono); font-size: 11.5px; color: var(--down);
-    background: rgba(248, 113, 113, 0.08); border-top: 1px dashed var(--border);
+  /* Error banner inside card if down */
+  .node-incident-alert {
+    background: rgba(244, 63, 94, 0.06);
+    border-top: 1px dashed var(--down-border);
     padding: 8px 18px;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--down);
+    display: flex;
+    align-items: center;
+    gap: 8px;
   }
-  .server-card.has-error .error-note{ display:block; }
 
-  /* ---------- manage subscriptions panel ---------- */
-  .manage-panel{
-    background: var(--panel); border: 1px solid var(--border); border-radius: 10px;
-    padding: 16px 18px; margin-bottom: 28px;
+  /* ---------- Incident Timeline ---------- */
+  .incidents-section {
+    margin-top: 48px;
   }
-  .manage-head{
-    display:flex; align-items:center; justify-content:space-between; cursor: pointer;
-    user-select: none;
+  .section-title {
+    font-size: 14px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--text-secondary);
+    margin-bottom: 16px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
   }
-  .manage-title{ font-size: 13.5px; font-weight:600; color: var(--text); display:flex; align-items:center; gap:8px; }
-  .manage-toggle{ font-family: var(--font-mono); font-size: 11px; color: var(--signal); }
-  .manage-body{ margin-top: 14px; display:none; }
-  .manage-body.open{ display:block; }
+  .incident-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    padding: 16px 20px;
+    margin-bottom: 12px;
+  }
+  .incident-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 8px;
+    gap: 10px;
+  }
+  .incident-title {
+    font-size: 13.5px;
+    font-weight: 600;
+    color: var(--text-primary);
+  }
+  .incident-status-tag {
+    font-family: var(--font-mono);
+    font-size: 10.5px;
+    font-weight: 700;
+    text-transform: uppercase;
+    padding: 2px 8px;
+    border-radius: 4px;
+  }
+  .incident-status-tag.resolved { background: var(--ok-bg); color: var(--ok); }
+  .incident-status-tag.down { background: var(--down-bg); color: var(--down); }
+  .incident-status-tag.degraded { background: var(--warn-bg); color: var(--warn); }
+  .incident-body {
+    font-size: 12.5px;
+    color: var(--text-secondary);
+  }
+  .incident-time {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--text-muted);
+    margin-top: 6px;
+  }
 
-  .sub-list-item{
-    display:flex; align-items:center; justify-content:space-between;
-    padding: 10px 0; border-bottom: 1px solid var(--border); font-size: 13px;
+  /* ---------- Modals & Drawers ---------- */
+  .modal-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.75);
+    backdrop-filter: blur(8px);
+    z-index: 1000;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    animation: fadeIn 0.15s ease-out;
   }
-  .sub-list-item:last-of-type{ border-bottom:none; }
-  .sub-list-name{ font-weight:600; color: var(--text); }
-  .sub-list-meta{ font-family: var(--font-mono); font-size: 11px; color: var(--dim); margin-top:2px; word-break: break-all; }
-  .sub-remove-btn{
-    background: none; border: 1px solid var(--border); color: var(--down);
-    font-family: var(--font-mono); font-size: 11px; padding: 4px 10px; border-radius: 6px;
-    cursor: pointer; flex-shrink:0; margin-left:12px;
+  .modal-backdrop.open {
+    display: flex;
   }
-  .sub-remove-btn:hover{ background: var(--down-dim); }
+  @keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
 
-  .add-sub-form{ display:flex; gap: 8px; margin-top: 16px; flex-wrap: wrap; }
-  .add-sub-form input{
-    background: var(--panel-2); border: 1px solid var(--border); color: var(--text);
-    font-family: var(--font-mono); font-size: 12px; padding: 8px 12px; border-radius: 6px;
+  .modal-card {
+    background: var(--surface);
+    border: 1px solid var(--border-strong);
+    border-radius: var(--radius-lg);
+    width: 100%;
+    max-width: 480px;
+    padding: 28px;
+    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.6);
+    position: relative;
+  }
+  .modal-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 20px;
+  }
+  .modal-title {
+    font-size: 16px;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .modal-close {
+    background: none;
+    border: none;
+    color: var(--text-muted);
+    font-size: 18px;
+    cursor: pointer;
+    padding: 4px;
+    line-height: 1;
+  }
+  .modal-close:hover {
+    color: var(--text-primary);
+  }
+
+  .form-group {
+    margin-bottom: 16px;
+  }
+  .form-label {
+    display: block;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-secondary);
+    margin-bottom: 6px;
+  }
+  .form-input {
+    width: 100%;
+    background: var(--surface-elevated);
+    border: 1px solid var(--border);
+    color: var(--text-primary);
+    font-family: var(--font-mono);
+    font-size: 12.5px;
+    padding: 10px 14px;
+    border-radius: var(--radius-sm);
     outline: none;
+    transition: border-color 0.15s ease;
   }
-  .add-sub-form input:focus{ border-color: var(--signal); }
-  .add-sub-form input[name="name"]{ width: 160px; }
-  .add-sub-form input[name="url"]{ flex: 1 1 260px; }
-  .form-msg{ font-family: var(--font-mono); font-size: 11.5px; margin-top: 8px; min-height: 14px; }
-  .form-msg.error{ color: var(--down); }
-  .form-msg.success{ color: var(--ok); }
+  .form-input:focus {
+    border-color: var(--brand);
+    box-shadow: 0 0 0 2px var(--brand-glow);
+  }
+  .form-alert {
+    font-family: var(--font-mono);
+    font-size: 11.5px;
+    margin-top: 10px;
+    padding: 8px 12px;
+    border-radius: var(--radius-sm);
+    display: none;
+  }
+  .form-alert.error {
+    display: block;
+    background: var(--down-bg);
+    color: var(--down);
+    border: 1px solid var(--down-border);
+  }
+  .form-alert.success {
+    display: block;
+    background: var(--ok-bg);
+    color: var(--ok);
+    border: 1px solid var(--ok-border);
+  }
 
-  /* ---------- incidents log ---------- */
-  .incidents-section{ margin-top: 40px; }
-  .section-title{
-    font-size: 13px; font-weight:700; letter-spacing:0.04em; text-transform:uppercase;
-    color: var(--muted); margin-bottom: 14px;
+  /* Admin Subscriptions Manager Drawer */
+  .admin-sub-item {
+    background: var(--surface-elevated);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 12px 14px;
+    margin-bottom: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
   }
-  .incident-item{
-    display:flex; gap: 12px; padding: 12px 0; border-bottom: 1px solid var(--border);
+  .admin-sub-info {
+    min-width: 0;
+    flex: 1 1 auto;
+  }
+  .admin-sub-name {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-primary);
+  }
+  .admin-sub-url {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--text-muted);
+    margin-top: 2px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  /* ---------- Floating Tooltip ---------- */
+  #tooltip {
+    position: fixed;
+    background: #0f172a;
+    border: 1px solid var(--border-strong);
+    border-radius: var(--radius-sm);
+    padding: 8px 12px;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--text-primary);
+    pointer-events: none;
+    z-index: 2000;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.6);
+    display: none;
+    line-height: 1.4;
+  }
+
+  /* ---------- Toast ---------- */
+  .toast {
+    position: fixed;
+    bottom: 24px;
+    right: 24px;
+    z-index: 3000;
+    background: var(--surface-elevated);
+    border: 1px solid var(--border-strong);
+    color: var(--text-primary);
+    font-family: var(--font-mono);
+    font-size: 12px;
+    padding: 12px 18px;
+    border-radius: var(--radius-md);
+    box-shadow: 0 12px 32px rgba(0, 0, 0, 0.7);
+    display: none;
+    align-items: center;
+    gap: 10px;
+    animation: toastIn 0.2s ease-out;
+  }
+  @keyframes toastIn {
+    from { transform: translateY(12px); opacity: 0; }
+    to { transform: translateY(0); opacity: 1; }
+  }
+  .toast.show { display: flex; }
+  .toast.success { border-color: var(--ok); }
+  .toast.error { border-color: var(--down); }
+
+  /* Empty State */
+  .empty-box {
+    text-align: center;
+    padding: 36px 20px;
+    color: var(--text-muted);
     font-size: 13px;
   }
-  .incident-item:last-child{ border-bottom:none; }
-  .incident-sev{
-    font-family: var(--font-mono); font-size: 10px; padding: 2px 7px; border-radius: 4px;
-    height: fit-content; text-transform:uppercase; flex-shrink:0; margin-top:2px; font-weight:700;
+
+  /* Spinner */
+  .spin {
+    animation: spin 1s linear infinite;
+    display: inline-block;
   }
-  .incident-sev.down{ background: var(--down-dim); color: var(--down); }
-  .incident-sev.degraded{ background: var(--warn-dim); color: var(--warn); }
-  .incident-body{ flex:1; }
-  .incident-summary{ color: var(--text); font-weight:500; }
-  .incident-time{ font-family: var(--font-mono); font-size: 11px; color: var(--dim); margin-top: 2px; }
-  .incident-resolved{ color: var(--ok); font-family: var(--font-mono); font-size:11px; }
+  @keyframes spin { 100% { transform: rotate(360deg); } }
 
-  .empty-state{ color: var(--dim); font-size: 13px; font-family: var(--font-mono); padding: 12px 0; }
-
-  /* ---------- toast / notification ---------- */
-  .toast{
-    position: fixed; bottom: 24px; right: 24px; z-index: 1000;
-    background: var(--panel-2); border: 1px solid var(--border);
-    color: var(--text); font-family: var(--font-mono); font-size: 12px;
-    padding: 12px 18px; border-radius: 8px; box-shadow: 0 8px 24px rgba(0,0,0,0.5);
-    display:none; align-items:center; gap: 8px;
-    animation: slideUp 0.2s ease-out;
-  }
-  @keyframes slideUp{ from{ transform: translateY(10px); opacity:0; } to{ transform: translateY(0); opacity:1; } }
-  .toast.show{ display:flex; }
-  .toast.success{ border-color: var(--ok); }
-  .toast.error{ border-color: var(--down); }
-
-  footer{
-    margin-top: 56px; padding-top: 20px; border-top: 1px solid var(--border);
-    font-family: var(--font-mono); font-size: 11px; color: var(--dim);
-    display:flex; justify-content: space-between; flex-wrap:wrap; gap: 8px;
+  /* Footer */
+  footer {
+    margin-top: 60px;
+    padding-top: 24px;
+    border-top: 1px solid var(--border);
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--text-muted);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 12px;
   }
 
-  /* spinner */
-  .spin{ animation: spin 1s linear infinite; display:inline-block; }
-  @keyframes spin{ 100%{ transform: rotate(360deg); } }
-
-  @media (max-width: 640px){
-    .server-row{ flex-wrap: wrap; }
-    .server-stats{ gap: 14px; width: 100%; justify-content: flex-start; margin-top: 6px; padding-left: 44px; }
-    .sync-info{ text-align:left; }
-    header.top{ align-items: flex-start; }
+  @media (max-width: 768px) {
+    .metrics-grid { grid-template-columns: repeat(2, 1fr); }
+    .node-main { flex-wrap: wrap; }
+    .node-telemetry { width: 100%; justify-content: space-between; margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--border); }
+    .hero-banner { flex-direction: column; align-items: flex-start; }
+    .hero-meta { text-align: left; }
   }
 </style>
 </head>
 <body>
-<div class="wrap">
 
+<div class="container">
+
+  <!-- Header -->
   <header class="top">
     <div class="brand">
-      <div class="brand-mark">R</div>
+      <div class="brand-logo">R</div>
       <div>
-        <div class="brand-name">Relay Network Status</div>
-        <div class="brand-sub">Real V2Ray & Proxy Connectivity Monitor</div>
+        <div class="brand-title">
+          Relay Status
+          <span class="brand-tag">Live</span>
+        </div>
+        <div class="brand-desc">V2Ray & Proxy Network Health Telemetry</div>
       </div>
     </div>
     <div class="header-actions">
-      <button class="btn btn-primary" id="btnCheckNow">
-        <span id="checkIcon">⚡</span> <span id="checkText">Check Now</span>
+      <button class="btn btn-admin" id="btnAdminAccess">
+        <span>🔒</span> <span id="adminBtnText">Admin Access</span>
       </button>
-      <div class="sync-info">
-        Next cycle: <b id="countdown">--:--</b><br>
-        Updated: <span id="lastSync">—</span>
-      </div>
     </div>
   </header>
 
-  <div class="system-status-bar" id="sysStatusBar">
-    <div id="sysEngineInfo">Engine: Checking Xray status…</div>
-    <div id="sysWorkerInfo">Cycle: Every 30 mins</div>
-  </div>
-
-  <div class="banner" id="banner">
-    <div class="banner-dot pulsing" id="bannerDot"></div>
-    <div class="banner-text">
-      <div class="banner-title" id="bannerTitle">Loading network status…</div>
-      <div class="banner-sub" id="bannerSub">Connecting to monitor daemon</div>
+  <!-- Admin Bar (When Logged In) -->
+  <div class="admin-bar" id="adminBar">
+    <div class="admin-bar-info">
+      <span class="admin-badge">Admin Mode</span>
+      <span id="adminSessionInfo">Logged in as admin</span>
+    </div>
+    <div class="admin-bar-actions">
+      <button class="btn btn-primary" id="btnAdminCheckNow">
+        <span id="adminCheckIcon">⚡</span> <span id="adminCheckText">Check All Nodes</span>
+      </button>
+      <button class="btn" id="btnManageSubs">
+        ⚙ Manage Subscriptions
+      </button>
+      <button class="btn btn-danger" id="btnAdminLogout">
+        Logout
+      </button>
     </div>
   </div>
 
-  <div class="controls-row">
-    <div class="filters" id="statusFilters">
-      <button class="filter-btn active" data-filter="all">All Servers</button>
-      <button class="filter-btn" data-filter="operational">Operational</button>
-      <button class="filter-btn" data-filter="degraded">Degraded</button>
-      <button class="filter-btn" data-filter="down">Down</button>
+  <!-- Hero Status Banner (Vercel Style) -->
+  <div class="hero-banner state-unknown" id="heroBanner">
+    <div class="hero-status-left">
+      <div class="status-pulse-ring">
+        <div class="pulse-wave"></div>
+        <div class="pulse-center"></div>
+      </div>
+      <div>
+        <div class="hero-title" id="heroTitle">Connecting to Telemetry…</div>
+        <div class="hero-subtitle" id="heroSub">Gathering network node reachability status</div>
+      </div>
+    </div>
+    <div class="hero-meta">
+      Next check: <b id="countdown">--:--</b><br>
+      Updated: <span id="lastSyncTime">—</span>
     </div>
   </div>
 
-  <div class="manage-panel">
-    <div class="manage-head" id="manageHead">
-      <div class="manage-title">⚙ Manage Subscriptions</div>
-      <div class="manage-toggle" id="manageToggle">show</div>
+  <!-- Metrics Grid -->
+  <div class="metrics-grid">
+    <div class="metric-card">
+      <div class="metric-label">24h System Uptime</div>
+      <div class="metric-value" id="metricUptime">--%</div>
+      <div class="metric-sub">Across all monitored nodes</div>
     </div>
-    <div class="manage-body" id="manageBody">
-      <div id="subListContainer"><div class="empty-state">Loading subscriptions…</div></div>
-      <form class="add-sub-form" id="addSubForm">
-        <input type="text" name="name" placeholder="Name (e.g. VIP Subscription)" required>
-        <input type="url" name="url" placeholder="https://your-provider.com/sub-link" required>
-        <button class="btn btn-primary" type="submit">Add Subscription</button>
-      </form>
-      <div class="form-msg" id="formMsg"></div>
+    <div class="metric-card">
+      <div class="metric-label">Active Nodes</div>
+      <div class="metric-value" id="metricNodes">--</div>
+      <div class="metric-sub" id="metricNodesSub">-- operational</div>
+    </div>
+    <div class="metric-card">
+      <div class="metric-label">Avg Proxy Latency</div>
+      <div class="metric-value" id="metricLatency">-- ms</div>
+      <div class="metric-sub">End-to-end tunnel speed</div>
+    </div>
+    <div class="metric-card">
+      <div class="metric-label">Network Disruption</div>
+      <div class="metric-value" id="metricDown">0</div>
+      <div class="metric-sub" id="metricDownSub">All regions normal</div>
     </div>
   </div>
 
-  <div id="subs"></div>
+  <!-- Filter & Search Controls -->
+  <div class="filter-bar">
+    <div class="filter-tabs" id="filterTabs">
+      <button class="tab-btn active" data-filter="all">All Nodes</button>
+      <button class="tab-btn" data-filter="operational">Operational</button>
+      <button class="tab-btn" data-filter="degraded">Degraded</button>
+      <button class="tab-btn" data-filter="down">Down</button>
+    </div>
+    <div class="search-box">
+      <span>🔍</span>
+      <input type="text" id="searchInput" placeholder="Search node by name or region…">
+    </div>
+  </div>
 
+  <!-- Subscriptions & Nodes Container -->
+  <div id="subscriptionsContainer">
+    <div class="empty-box">Loading network telemetry…</div>
+  </div>
+
+  <!-- Incident Timeline -->
   <div class="incidents-section">
-    <div class="section-title">Recent Incidents</div>
-    <div id="incidents"><div class="empty-state">No incidents to show.</div></div>
+    <div class="section-title">
+      <span>📋</span> Incident History & Activity Log
+    </div>
+    <div id="incidentsContainer">
+      <div class="empty-box">No incidents reported.</div>
+    </div>
   </div>
 
+  <!-- Footer -->
   <footer>
-    <span>Dual verification: TCP reachability + End-to-end Xray proxy tunnel test.</span>
-    <span id="genAt">—</span>
+    <span>Dual verification: TCP reachability + End-to-end Xray SOCKS5 tunnel request.</span>
+    <span id="footerEngineInfo">Engine: Active</span>
   </footer>
+
 </div>
 
+<!-- Tooltip Element -->
+<div id="tooltip"></div>
+
+<!-- Admin Login Modal -->
+<div class="modal-backdrop" id="loginModal">
+  <div class="modal-card">
+    <div class="modal-head">
+      <div class="modal-title">🔐 Admin Authentication</div>
+      <button class="modal-close" id="closeLoginModal">&times;</button>
+    </div>
+    <form id="loginForm">
+      <div class="form-group">
+        <label class="form-label" for="loginUser">Username</label>
+        <input class="form-input" type="text" id="loginUser" required autocomplete="username" value="admin">
+      </div>
+      <div class="form-group">
+        <label class="form-label" for="loginPass">Password</label>
+        <input class="form-input" type="password" id="loginPass" required autocomplete="current-password" placeholder="••••••••">
+      </div>
+      <button class="btn btn-primary" type="submit" style="width: 100%; justify-content: center; margin-top: 8px;">
+        Sign In to Admin
+      </button>
+      <div class="form-alert" id="loginAlert"></div>
+    </form>
+  </div>
+</div>
+
+<!-- Admin Subscriptions Manager Modal -->
+<div class="modal-backdrop" id="subsModal">
+  <div class="modal-card" style="max-width: 600px;">
+    <div class="modal-head">
+      <div class="modal-title">⚙ Manage Subscriptions</div>
+      <button class="modal-close" id="closeSubsModal">&times;</button>
+    </div>
+    
+    <div style="margin-bottom: 20px;">
+      <div class="form-label">Active Subscriptions</div>
+      <div id="adminSubsList">Loading…</div>
+    </div>
+
+    <form id="addSubscriptionForm" style="border-top: 1px solid var(--border); padding-top: 16px;">
+      <div class="form-label" style="margin-bottom: 10px;">Add New Subscription URL</div>
+      <div class="form-group">
+        <input class="form-input" type="text" name="name" placeholder="Subscription Name (e.g. VIP Europe)" required>
+      </div>
+      <div class="form-group">
+        <input class="form-input" type="url" name="url" placeholder="https://your-provider.com/sub-token" required>
+      </div>
+      <button class="btn btn-primary" type="submit" style="width: 100%; justify-content: center;">
+        Add & Discover Nodes
+      </button>
+      <div class="form-alert" id="subFormAlert"></div>
+    </form>
+  </div>
+</div>
+
+<!-- Toast -->
 <div class="toast" id="toast"></div>
 
 <script>
-// Dynamic API endpoint detection: defaults to same-origin /api, or localhost:8000/api if opened directly as file
 const API_BASE = window.RELAY_API_BASE || (
   window.location.origin.startsWith("http")
     ? (window.location.origin.replace(/\/$/, "") + "/api")
     : "http://localhost:8000/api"
 );
 
-const STATUS_LABEL = { operational: "Operational", degraded: "Degraded", down: "Down", unknown: "Unknown" };
+let cachedData = null;
 let currentFilter = "all";
-let cachedSubs = [];
-let nextCheckSeconds = 30 * 60;
+let searchQuery = "";
+let countdownSeconds = 30 * 60;
+let adminToken = localStorage.getItem("relay_admin_token") || null;
 
-function showToast(msg, type="success"){
-  const t = document.getElementById("toast");
-  t.className = `toast show ${type}`;
-  t.textContent = msg;
-  setTimeout(() => { t.className = "toast"; }, 4000);
+const STATUS_NAMES = {
+  operational: "Operational",
+  degraded: "Degraded",
+  down: "Down",
+  unknown: "Unknown"
+};
+
+// Toast notification
+function toast(msg, type="success") {
+  const el = document.getElementById("toast");
+  el.className = `toast show ${type}`;
+  el.textContent = msg;
+  setTimeout(() => { el.className = "toast"; }, 4000);
 }
 
-function fmtTime(iso){
-  if(!iso) return "—";
-  const d = new Date(iso);
-  return d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
-}
-
-function fmtRelative(iso){
-  if(!iso) return "never";
+// Format relative time
+function fmtRelative(iso) {
+  if (!iso) return "never";
   const diffMs = Date.now() - new Date(iso).getTime();
   const mins = Math.round(diffMs / 60000);
-  if(mins < 1) return "just now";
-  if(mins < 60) return `${mins}m ago`;
-  return `${Math.round(mins/60)}h ago`;
+  if (mins < 1) return "just now";
+  if (mins < 60) return `${mins}m ago`;
+  const hours = Math.round(mins / 60);
+  if (hours < 24) return `${hours}h ago`;
+  return `${Math.round(hours / 24)}d ago`;
 }
 
-function renderBanner(status, subs){
-  const banner = document.getElementById("banner");
-  const dot = document.getElementById("bannerDot");
-  const title = document.getElementById("bannerTitle");
-  const sub = document.getElementById("bannerSub");
+function fmtTime(iso) {
+  if (!iso) return "—";
+  return new Date(iso).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+}
 
-  banner.className = "banner state-" + status;
-  const total = subs.reduce((n, s) => n + s.servers.length, 0);
-  const down = subs.reduce((n, s) => n + s.servers.filter(x => x.status === "down").length, 0);
-  const degraded = subs.reduce((n, s) => n + s.servers.filter(x => x.status === "degraded").length, 0);
+// Tooltip positioning
+const tooltip = document.getElementById("tooltip");
+function showTooltip(e, html) {
+  tooltip.innerHTML = html;
+  tooltip.style.display = "block";
+  const x = Math.min(window.innerWidth - 220, e.clientX + 12);
+  const y = Math.min(window.innerHeight - 80, e.clientY + 12);
+  tooltip.style.left = x + "px";
+  tooltip.style.top = y + "px";
+}
+function hideTooltip() {
+  tooltip.style.display = "none";
+}
 
-  if(status === "operational"){
+// Render overall hero status
+function renderHero(status, summary, subs) {
+  const banner = document.getElementById("heroBanner");
+  const title = document.getElementById("heroTitle");
+  const sub = document.getElementById("heroSub");
+
+  banner.className = `hero-banner state-${status}`;
+  
+  if (status === "operational") {
     title.textContent = "All Systems Operational";
-    sub.textContent = `${total} server${total===1?"":"s"} active across ${subs.length} subscription${subs.length===1?"":"s"}`;
-  } else if(status === "degraded"){
+    sub.textContent = `${summary.total_nodes} nodes operational across ${subs.length} service groups`;
+  } else if (status === "degraded") {
     title.textContent = "Partial Performance Degradation";
-    sub.textContent = `${degraded} server${degraded===1?"":"s"} degraded${down?`, ${down} down`:""} out of ${total}`;
-  } else if(status === "down"){
+    sub.textContent = `${summary.degraded_nodes} nodes experiencing degraded latency (${summary.down_nodes} down)`;
+  } else if (status === "down") {
     title.textContent = "Service Disruption Detected";
-    sub.textContent = `${down} server${down===1?"":"s"} failing real proxy checks out of ${total}`;
+    sub.textContent = `${summary.down_nodes} nodes currently failing proxy tunnel checks`;
   } else {
-    title.textContent = "Awaiting First Check";
-    sub.textContent = "No server check results recorded yet";
-  }
-}
-
-function historyBar(point){
-  const st = point.status || "unknown";
-  const div = document.createElement("div");
-  div.className = "hbar " + st;
-  const t = new Date(point.checked_at).toLocaleString([], { month:"short", day:"numeric", hour:"2-digit", minute:"2-digit" });
-  const lat = point.latency_ms ? `${Math.round(point.latency_ms)}ms` : (point.error ? `Error: ${point.error}` : "no response");
-  div.title = `${t} — ${STATUS_LABEL[st] || st} — ${lat}`;
-  return div;
-}
-
-function renderServer(server){
-  if(currentFilter !== "all" && server.status !== currentFilter){
-    return null;
+    title.textContent = "Awaiting Telemetry";
+    sub.textContent = "Connecting to monitor daemon";
   }
 
-  const hasError = server.status === "down" || (server.last_error && server.status === "degraded");
+  // Metric cards
+  document.getElementById("metricUptime").textContent = `${summary.avg_uptime_24h}%`;
+  document.getElementById("metricNodes").textContent = summary.total_nodes;
+  document.getElementById("metricNodesSub").textContent = `${summary.operational_nodes} operational`;
+  document.getElementById("metricLatency").textContent = summary.avg_latency_ms ? `${Math.round(summary.avg_latency_ms)} ms` : "—";
+  document.getElementById("metricDown").textContent = summary.down_nodes;
+  document.getElementById("metricDownSub").textContent = summary.down_nodes > 0 ? `${summary.down_nodes} nodes offline` : "All regions normal";
+}
+
+// Render Node Card
+function renderNode(server) {
+  const matchesFilter = currentFilter === "all" || server.status === currentFilter;
+  const q = searchQuery.toLowerCase().trim();
+  const matchesSearch = !q || 
+    (server.remark && server.remark.toLowerCase().includes(q)) || 
+    (server.country_name && server.country_name.toLowerCase().includes(q)) ||
+    (server.protocol && server.protocol.toLowerCase().includes(q));
+
+  if (!matchesFilter || !matchesSearch) return null;
+
   const card = document.createElement("div");
-  card.className = "server-card" + (hasError ? " has-error" : "");
+  card.className = "node-card";
+
+  // Telemetry values
+  const proxyLatencyText = (server.latency_ms && server.status !== "down")
+    ? `${Math.round(server.latency_ms)} ms`
+    : `<span class="stat-val offline">—</span>`;
+
+  const pingText = server.tcp_latency_ms 
+    ? `${Math.round(server.tcp_latency_ms)} ms` 
+    : "—";
 
   const row = document.createElement("div");
-  row.className = "server-row";
+  row.className = "node-main";
   row.innerHTML = `
-    <div class="flag">${server.country_flag || "🏳️"}</div>
-    <div class="server-id">
-      <div class="server-name">${server.remark || server.country_name}
-        <span class="proto-badge">${server.protocol}</span>
-      </div>
-      <div class="server-meta">${server.country_name} · checked ${fmtRelative(server.last_checked_at)}</div>
-    </div>
-    <div class="server-stats">
-      <div class="stat">
-        <div class="stat-value">${server.latency_ms ? Math.round(server.latency_ms)+"ms" : "—"}</div>
-        <div class="stat-label">Proxy Latency</div>
-      </div>
-      <div class="stat">
-        <div class="stat-value">${server.tcp_latency_ms ? Math.round(server.tcp_latency_ms)+"ms" : "—"}</div>
-        <div class="stat-label">TCP Ping</div>
-      </div>
-      <div class="stat">
-        <div class="stat-value">${server.uptime_pct_24h}%</div>
-        <div class="stat-label">24h Uptime</div>
+    <div class="node-info">
+      <div class="node-flag">${server.country_flag || "🌐"}</div>
+      <div class="node-details">
+        <div class="node-name">
+          ${server.remark || server.country_name}
+          <span class="proto-tag">${server.protocol}</span>
+        </div>
+        <div class="node-meta">
+          <span>${server.country_name}</span>
+          <span>·</span>
+          <span>Checked ${fmtRelative(server.last_checked_at)}</span>
+        </div>
       </div>
     </div>
-    <div class="status-chip ${server.status}"><span class="dot"></span>${STATUS_LABEL[server.status] || server.status}</div>
+    <div class="node-telemetry">
+      <div class="stat-group">
+        <div class="stat-val">${proxyLatencyText}</div>
+        <div class="stat-lbl">Proxy Speed</div>
+      </div>
+      <div class="stat-group">
+        <div class="stat-val">${pingText}</div>
+        <div class="stat-lbl">TCP Ping</div>
+      </div>
+      <div class="stat-group">
+        <div class="stat-val">${server.uptime_pct_24h}%</div>
+        <div class="stat-lbl">24h Uptime</div>
+      </div>
+      <div class="status-badge ${server.status}">
+        <span class="dot"></span> ${STATUS_NAMES[server.status] || server.status}
+      </div>
+    </div>
   `;
   card.appendChild(row);
 
-  const strip = document.createElement("div");
-  strip.className = "history-strip";
-  const hist = server.history && server.history.length ? server.history : [];
-  hist.forEach(p => strip.appendChild(historyBar(p)));
-  card.appendChild(strip);
+  // History strip
+  const histContainer = document.createElement("div");
+  histContainer.className = "history-container";
+  const barsWrapper = document.createElement("div");
+  barsWrapper.className = "history-bars";
 
-  if(server.open_incident || server.last_error){
-    const note = document.createElement("div");
-    note.className = "error-note";
-    const incidentMsg = server.open_incident ? `⚠ Incident: ${server.open_incident.summary || "Degraded service"}` : "";
-    const errMsg = server.last_error ? `Error: ${server.last_error}` : "";
-    note.textContent = [incidentMsg, errMsg].filter(Boolean).join(" | ");
-    card.appendChild(note);
+  const history = server.history || [];
+  history.forEach(h => {
+    const bar = document.createElement("div");
+    bar.className = `history-bar ${h.status}`;
+    
+    bar.addEventListener("mouseenter", (e) => {
+      const timeStr = new Date(h.checked_at).toLocaleString([], { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" });
+      const lat = h.latency_ms ? `${Math.round(h.latency_ms)} ms` : (h.error ? `Error: ${h.error}` : "no response");
+      const ping = h.tcp_latency_ms ? ` (Ping: ${Math.round(h.tcp_latency_ms)}ms)` : "";
+      showTooltip(e, `<b>${timeStr}</b><br>Status: ${STATUS_NAMES[h.status] || h.status}<br>Latency: ${lat}${ping}`);
+    });
+    bar.addEventListener("mousemove", (e) => {
+      tooltip.style.left = (e.clientX + 12) + "px";
+      tooltip.style.top = (e.clientY + 12) + "px";
+    });
+    bar.addEventListener("mouseleave", hideTooltip);
+
+    barsWrapper.appendChild(bar);
+  });
+
+  histContainer.appendChild(barsWrapper);
+
+  const caption = document.createElement("div");
+  caption.className = "history-caption";
+  caption.innerHTML = `
+    <span>90 checks ago</span>
+    <span>${server.uptime_pct_24h}% uptime</span>
+    <span>Today</span>
+  `;
+  histContainer.appendChild(caption);
+  card.appendChild(histContainer);
+
+  if (server.open_incident || (server.status === "down" && server.history && server.history.length && server.history[server.history.length-1].error)) {
+    const alert = document.createElement("div");
+    alert.className = "node-incident-alert";
+    const errText = server.open_incident ? server.open_incident.summary : (server.history[server.history.length-1].error || "Proxy connection offline");
+    alert.innerHTML = `<span>⚠ Notice:</span> <span>${errText}</span>`;
+    card.appendChild(alert);
   }
 
   return card;
 }
 
-function renderSubs(subs){
-  cachedSubs = subs;
-  const container = document.getElementById("subs");
+// Render Subscriptions List
+function renderSubscriptions(subs) {
+  const container = document.getElementById("subscriptionsContainer");
   container.innerHTML = "";
 
-  subs.forEach(sub => {
-    const group = document.createElement("div");
-    group.className = "sub-group";
-    const head = document.createElement("div");
-    head.className = "sub-head";
-    head.innerHTML = `
-      <div class="sub-title-area">
-        <div class="sub-name">${sub.name}</div>
-        <button class="sub-sync-btn" data-sub-id="${sub.id}">⚡ Sync & Check</button>
-      </div>
-      <div class="sub-status-pill ${sub.status}">${STATUS_LABEL[sub.status] || sub.status}</div>
-    `;
-    head.querySelector(".sub-sync-btn").addEventListener("click", () => syncSingleSubscription(sub.id, sub.name));
-    group.appendChild(head);
+  if (!subs || !subs.length) {
+    container.innerHTML = `<div class="empty-box">No services configured yet. Admin can add subscription links in Admin Mode.</div>`;
+    return;
+  }
 
-    let renderedCount = 0;
-    sub.servers.forEach(server => {
-      const el = renderServer(server);
-      if(el){
-        group.appendChild(el);
-        renderedCount++;
+  subs.forEach(sub => {
+    const block = document.createElement("div");
+    block.className = "subscription-block";
+
+    const header = document.createElement("div");
+    header.className = "subscription-header";
+    header.innerHTML = `
+      <div class="subscription-title">
+        <span>${sub.name}</span>
+        <span class="node-count-badge">${sub.servers.length} nodes</span>
+      </div>
+      <div class="sub-status-chip ${sub.status}">${STATUS_NAMES[sub.status] || sub.status}</div>
+    `;
+    block.appendChild(header);
+
+    let renderedNodes = 0;
+    sub.servers.forEach(srv => {
+      const nodeEl = renderNode(srv);
+      if (nodeEl) {
+        block.appendChild(nodeEl);
+        renderedNodes++;
       }
     });
 
-    if(sub.servers.length === 0){
+    if (sub.servers.length === 0) {
       const empty = document.createElement("div");
-      empty.className = "empty-state";
-      empty.textContent = "No servers discovered in this subscription.";
-      group.appendChild(empty);
-    } else if(renderedCount === 0 && currentFilter !== "all"){
+      empty.className = "empty-box";
+      empty.textContent = "No nodes discovered in this service group.";
+      block.appendChild(empty);
+    } else if (renderedNodes === 0) {
       const empty = document.createElement("div");
-      empty.className = "empty-state";
-      empty.textContent = `No servers with status "${currentFilter}".`;
-      group.appendChild(empty);
+      empty.className = "empty-box";
+      empty.textContent = `No nodes match filter "${currentFilter}".`;
+      block.appendChild(empty);
     }
 
-    container.appendChild(group);
+    container.appendChild(block);
   });
 }
 
-function renderIncidents(incidents){
-  const container = document.getElementById("incidents");
+// Render Incidents
+function renderIncidents(incidents) {
+  const container = document.getElementById("incidentsContainer");
   container.innerHTML = "";
-  if(!incidents || incidents.length === 0){
-    container.innerHTML = '<div class="empty-state">No active or recent incidents.</div>';
+
+  if (!incidents || !incidents.length) {
+    container.innerHTML = `<div class="empty-box">All systems operational — No incidents logged.</div>`;
     return;
   }
+
   incidents.forEach(inc => {
-    const item = document.createElement("div");
-    item.className = "incident-item";
-    item.innerHTML = `
-      <div class="incident-sev ${inc.severity}">${inc.severity}</div>
-      <div class="incident-body">
-        <div class="incident-summary">${inc.summary || "Connectivity issue detected"}</div>
-        <div class="incident-time">
-          Started ${fmtTime(inc.started_at)}
-          ${inc.resolved_at ? ` · <span class="incident-resolved">Resolved ${fmtTime(inc.resolved_at)}</span>` : " · ongoing"}
+    const card = document.createElement("div");
+    card.className = "incident-card";
+    const isResolved = Boolean(inc.resolved_at);
+
+    card.innerHTML = `
+      <div class="incident-header">
+        <div class="incident-title">${inc.summary || "Connectivity issue detected"}</div>
+        <div class="incident-status-tag ${isResolved ? 'resolved' : inc.severity}">
+          ${isResolved ? 'Resolved' : inc.severity}
         </div>
       </div>
+      <div class="incident-time">
+        Started: ${fmtTime(inc.started_at)} · 
+        ${isResolved ? `Resolved at ${fmtTime(inc.resolved_at)}` : 'Ongoing investigation'}
+      </div>
     `;
-    container.appendChild(item);
+    container.appendChild(card);
   });
 }
 
-async function loadSystemInfo(){
-  try{
-    const res = await fetch(`${API_BASE}/system-info`);
-    if(res.ok){
-      const data = await res.json();
-      const eng = document.getElementById("sysEngineInfo");
-      if(data.xray_installed){
-        eng.innerHTML = `Engine: <span class="sys-badge">Xray Core Active</span> <span style="color:var(--dim)">(${data.xray_version || 'ready'})</span>`;
-      } else {
-        eng.innerHTML = `Engine: <span class="sys-badge warn">Xray Missing</span> (TCP checks only)`;
-      }
-    }
-  }catch(e){}
+// Fetch Status Telemetry
+async function fetchStatus() {
+  try {
+    const res = await fetch(`${API_BASE}/status`);
+    if (!res.ok) throw new Error("HTTP " + res.status);
+    const data = await res.json();
+    cachedData = data;
+
+    renderHero(data.overall_status, data.summary, data.subscriptions);
+    renderSubscriptions(data.subscriptions);
+    renderIncidents(data.recent_incidents);
+
+    document.getElementById("lastSyncTime").textContent = fmtTime(data.generated_at);
+    countdownSeconds = (data.check_interval_mins || 30) * 60;
+  } catch (err) {
+    console.warn("Status fetch error:", err);
+  }
 }
 
-function updateCountdown(){
+// Countdown timer
+function updateCountdown() {
   const el = document.getElementById("countdown");
-  nextCheckSeconds = Math.max(0, nextCheckSeconds - 1);
-  const m = String(Math.floor(nextCheckSeconds / 60)).padStart(2, "0");
-  const s = String(nextCheckSeconds % 60).padStart(2, "0");
+  countdownSeconds = Math.max(0, countdownSeconds - 1);
+  const m = String(Math.floor(countdownSeconds / 60)).padStart(2, "0");
+  const s = String(countdownSeconds % 60).padStart(2, "0");
   el.textContent = `${m}:${s}`;
 }
 setInterval(updateCountdown, 1000);
 
-async function loadStatus(){
-  try{
-    const res = await fetch(`${API_BASE}/status`);
-    if(!res.ok) throw new Error("bad response");
-    const data = await res.json();
-    renderBanner(data.overall_status, data.subscriptions);
-    renderSubs(data.subscriptions);
-    renderIncidents(data.recent_incidents);
-    document.getElementById("lastSync").textContent = fmtTime(data.generated_at);
-    document.getElementById("genAt").textContent = "Generated " + new Date(data.generated_at).toLocaleString();
-    nextCheckSeconds = 30 * 60;
-  }catch(err){
-    console.warn("API unreachable:", err);
+// Filter Tabs
+document.querySelectorAll(".tab-btn").forEach(btn => {
+  btn.addEventListener("click", () => {
+    document.querySelectorAll(".tab-btn").forEach(b => b.classList.remove("active"));
+    btn.classList.add("active");
+    currentFilter = btn.getAttribute("data-filter");
+    if (cachedData) renderSubscriptions(cachedData.subscriptions);
+  });
+});
+
+// Search input
+document.getElementById("searchInput").addEventListener("input", (e) => {
+  searchQuery = e.target.value;
+  if (cachedData) renderSubscriptions(cachedData.subscriptions);
+});
+
+// ---------------- Admin & Auth Logic ----------------
+
+async function checkAdminAuth() {
+  if (!adminToken) {
+    setAdminUI(false);
+    return;
+  }
+  try {
+    const res = await fetch(`${API_BASE}/auth/me`, {
+      headers: { "Authorization": `Bearer ${adminToken}` }
+    });
+    if (res.ok) {
+      const data = await res.json();
+      setAdminUI(true, data.username);
+    } else {
+      adminToken = null;
+      localStorage.removeItem("relay_admin_token");
+      setAdminUI(false);
+    }
+  } catch (e) {
+    setAdminUI(false);
   }
 }
 
-// Trigger immediate check cycle
-document.getElementById("btnCheckNow").addEventListener("click", async () => {
-  const btn = document.getElementById("btnCheckNow");
-  const icon = document.getElementById("checkIcon");
-  const txt = document.getElementById("checkText");
+function setAdminUI(isAuth, username="admin") {
+  const bar = document.getElementById("adminBar");
+  const btnText = document.getElementById("adminBtnText");
+  if (isAuth) {
+    bar.classList.add("active");
+    btnText.textContent = "Admin Active";
+    document.getElementById("adminSessionInfo").textContent = `Logged in as ${username}`;
+  } else {
+    bar.classList.remove("active");
+    btnText.textContent = "Admin Access";
+  }
+}
+
+// Open Login Modal
+document.getElementById("btnAdminAccess").addEventListener("click", () => {
+  if (adminToken) {
+    document.getElementById("subsModal").classList.add("open");
+    loadAdminSubscriptions();
+  } else {
+    document.getElementById("loginModal").classList.add("open");
+  }
+});
+document.getElementById("closeLoginModal").addEventListener("click", () => {
+  document.getElementById("loginModal").classList.remove("open");
+});
+document.getElementById("closeSubsModal").addEventListener("click", () => {
+  document.getElementById("subsModal").classList.remove("open");
+});
+
+// Login Form Submit
+document.getElementById("loginForm").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const alertEl = document.getElementById("loginAlert");
+  alertEl.className = "form-alert";
+  alertEl.style.display = "none";
+
+  const user = document.getElementById("loginUser").value.trim();
+  const pass = document.getElementById("loginPass").value;
+
+  try {
+    const res = await fetch(`${API_BASE}/auth/login`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ username: user, password: pass })
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.detail || "Invalid credentials");
+    }
+    const data = await res.json();
+    adminToken = data.token;
+    localStorage.setItem("relay_admin_token", adminToken);
+    setAdminUI(true, data.username);
+    document.getElementById("loginModal").classList.remove("open");
+    toast("Welcome back, Admin!", "success");
+  } catch (err) {
+    alertEl.className = "form-alert error";
+    alertEl.textContent = err.message;
+  }
+});
+
+// Admin Logout
+document.getElementById("btnAdminLogout").addEventListener("click", async () => {
+  if (adminToken) {
+    try {
+      await fetch(`${API_BASE}/auth/logout`, {
+        method: "POST",
+        headers: { "Authorization": `Bearer ${adminToken}` }
+      });
+    } catch(e) {}
+  }
+  adminToken = null;
+  localStorage.removeItem("relay_admin_token");
+  setAdminUI(false);
+  toast("Logged out from admin mode.");
+});
+
+// Admin Run Check Now
+document.getElementById("btnAdminCheckNow").addEventListener("click", async () => {
+  const btn = document.getElementById("btnAdminCheckNow");
+  const icon = document.getElementById("adminCheckIcon");
+  const txt = document.getElementById("adminCheckText");
 
   btn.disabled = true;
   icon.innerHTML = '<span class="spin">⏳</span>';
-  txt.textContent = "Checking...";
+  txt.textContent = "Checking Nodes…";
 
-  try{
-    const res = await fetch(`${API_BASE}/check-now`, { method: "POST" });
-    if(!res.ok) throw new Error("Trigger failed");
-    showToast("Monitoring cycle started! Updating results...");
-    // Poll for status update
-    setTimeout(loadStatus, 2000);
-    setTimeout(loadStatus, 5000);
-    setTimeout(loadStatus, 10000);
-  }catch(e){
-    showToast("Could not trigger check: " + e.message, "error");
-  }finally{
+  try {
+    const res = await fetch(`${API_BASE}/check-now`, {
+      method: "POST",
+      headers: { "Authorization": `Bearer ${adminToken}` }
+    });
+    if (!res.ok) throw new Error("Trigger failed");
+    toast("Check cycle initiated. Live telemetry updating…");
+    setTimeout(fetchStatus, 2000);
+    setTimeout(fetchStatus, 5000);
+    setTimeout(fetchStatus, 10000);
+  } catch (err) {
+    toast("Check error: " + err.message, "error");
+  } finally {
     setTimeout(() => {
       btn.disabled = false;
       icon.textContent = "⚡";
-      txt.textContent = "Check Now";
+      txt.textContent = "Check All Nodes";
     }, 2500);
   }
 });
 
-async function syncSingleSubscription(subId, name){
-  showToast(`Syncing & checking "${name}"...`);
-  try{
-    const res = await fetch(`${API_BASE}/subscriptions/${subId}/sync`, { method: "POST" });
-    if(res.ok){
-      showToast(`Subscription "${name}" checked successfully!`);
-      loadStatus();
-    }
-  }catch(e){
-    showToast(`Failed to sync subscription: ${e.message}`, "error");
-  }
-}
-
-// Filter buttons
-document.querySelectorAll(".filter-btn").forEach(btn => {
-  btn.addEventListener("click", (e) => {
-    document.querySelectorAll(".filter-btn").forEach(b => b.classList.remove("active"));
-    btn.classList.add("active");
-    currentFilter = btn.getAttribute("data-filter");
-    if(cachedSubs.length) renderSubs(cachedSubs);
-  });
+// Open Subscriptions Modal
+document.getElementById("btnManageSubs").addEventListener("click", () => {
+  document.getElementById("subsModal").classList.add("open");
+  loadAdminSubscriptions();
 });
 
-// Manage subscriptions panel
-const manageHead = document.getElementById("manageHead");
-const manageBody = document.getElementById("manageBody");
-const manageToggle = document.getElementById("manageToggle");
-manageHead.addEventListener("click", () => {
-  const open = manageBody.classList.toggle("open");
-  manageToggle.textContent = open ? "hide" : "show";
-  if(open) loadSubscriptionList();
-});
+// Load Admin Subscriptions
+async function loadAdminSubscriptions() {
+  const container = document.getElementById("adminSubsList");
+  container.innerHTML = '<div class="empty-box">Loading subscription list…</div>';
 
-async function loadSubscriptionList(){
-  const container = document.getElementById("subListContainer");
-  try{
-    const res = await fetch(`${API_BASE}/subscriptions`);
-    const subs = await res.json();
-    if(!subs.length){
-      container.innerHTML = '<div class="empty-state">No subscriptions registered yet — add one below.</div>';
+  try {
+    const res = await fetch(`${API_BASE}/admin/subscriptions`, {
+      headers: { "Authorization": `Bearer ${adminToken}` }
+    });
+    if (!res.ok) throw new Error("Unauthorized or server error");
+    const list = await res.json();
+    if (!list.length) {
+      container.innerHTML = '<div class="empty-box">No subscriptions registered yet.</div>';
       return;
     }
     container.innerHTML = "";
-    subs.forEach(s => {
-      const row = document.createElement("div");
-      row.className = "sub-list-item";
-      row.innerHTML = `
-        <div>
-          <div class="sub-list-name">${s.name}</div>
-          <div class="sub-list-meta">${s.server_count} server${s.server_count===1?"":"s"} · ${s.url}</div>
+    list.forEach(s => {
+      const item = document.createElement("div");
+      item.className = "admin-sub-item";
+      item.innerHTML = `
+        <div class="admin-sub-info">
+          <div class="admin-sub-name">${s.name} (${s.server_count} nodes)</div>
+          <div class="admin-sub-url">${s.url}</div>
         </div>
-        <button class="sub-remove-btn" data-id="${s.id}">Remove</button>
+        <div style="display:flex; gap:6px;">
+          <button class="btn" data-sync="${s.id}" style="font-size:11px; padding:4px 8px;">⚡ Sync</button>
+          <button class="btn btn-danger" data-del="${s.id}" style="font-size:11px; padding:4px 8px;">Delete</button>
+        </div>
       `;
-      row.querySelector("button").addEventListener("click", () => removeSubscription(s.id));
-      container.appendChild(row);
+      item.querySelector("[data-sync]").addEventListener("click", () => syncSubscription(s.id, s.name));
+      item.querySelector("[data-del]").addEventListener("click", () => deleteSubscription(s.id, s.name));
+      container.appendChild(item);
     });
-  }catch(err){
-    container.innerHTML = '<div class="empty-state">Could not reach API to list subscriptions.</div>';
+  } catch (err) {
+    container.innerHTML = `<div class="empty-box" style="color:var(--down)">Failed to load: ${err.message}</div>`;
   }
 }
 
-async function removeSubscription(id){
-  if(!confirm("Stop monitoring this subscription?")) return;
-  await fetch(`${API_BASE}/subscriptions/${id}`, { method: "DELETE" });
-  loadSubscriptionList();
-  loadStatus();
-}
-
-document.getElementById("addSubForm").addEventListener("submit", async (e) => {
+// Add Subscription Form
+document.getElementById("addSubscriptionForm").addEventListener("submit", async (e) => {
   e.preventDefault();
   const form = e.target;
-  const btn = form.querySelector("button");
-  const msg = document.getElementById("formMsg");
+  const alertEl = document.getElementById("subFormAlert");
+  alertEl.className = "form-alert";
+  alertEl.style.display = "none";
+
   const name = form.name.value.trim();
   const url = form.url.value.trim();
 
-  btn.disabled = true;
-  msg.className = "form-msg";
-  msg.textContent = "Adding and discovering servers...";
-
-  try{
+  try {
     const res = await fetch(`${API_BASE}/subscriptions`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name, url }),
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${adminToken}`
+      },
+      body: JSON.stringify({ name, url })
     });
-    if(!res.ok){
+    if (!res.ok) {
       const err = await res.json().catch(() => ({}));
       throw new Error(err.detail || "Failed to add subscription");
     }
-    msg.className = "form-msg success";
-    msg.textContent = `Added "${name}"! Checking servers in background...`;
+    alertEl.className = "form-alert success";
+    alertEl.textContent = `Added "${name}"! Nodes being discovered in background…`;
     form.reset();
-    loadSubscriptionList();
-    setTimeout(loadStatus, 2000);
-    setTimeout(loadStatus, 5000);
-  }catch(err){
-    msg.className = "form-msg error";
-    msg.textContent = err.message;
-  }finally{
-    btn.disabled = false;
+    loadAdminSubscriptions();
+    setTimeout(fetchStatus, 2000);
+    setTimeout(fetchStatus, 6000);
+  } catch (err) {
+    alertEl.className = "form-alert error";
+    alertEl.textContent = err.message;
   }
 });
 
-// Initial startup
-loadSystemInfo();
-loadStatus();
-setInterval(loadStatus, 30000);
+async function syncSubscription(subId, name) {
+  toast(`Syncing "${name}"…`);
+  try {
+    const res = await fetch(`${API_BASE}/subscriptions/${subId}/sync`, {
+      method: "POST",
+      headers: { "Authorization": `Bearer ${adminToken}` }
+    });
+    if (res.ok) {
+      toast(`"${name}" synced & checked!`, "success");
+      fetchStatus();
+      loadAdminSubscriptions();
+    }
+  } catch (err) {
+    toast(`Sync error: ${err.message}`, "error");
+  }
+}
+
+async function deleteSubscription(subId, name) {
+  if (!confirm(`Delete subscription "${name}"?`)) return;
+  try {
+    const res = await fetch(`${API_BASE}/subscriptions/${subId}`, {
+      method: "DELETE",
+      headers: { "Authorization": `Bearer ${adminToken}` }
+    });
+    if (res.ok) {
+      toast(`Removed "${name}".`, "success");
+      loadAdminSubscriptions();
+      fetchStatus();
+    }
+  } catch (err) {
+    toast(`Error: ${err.message}`, "error");
+  }
+}
+
+// System info for footer
+async function loadEngineInfo() {
+  try {
+    const res = await fetch(`${API_BASE}/system-info`);
+    if (res.ok) {
+      const data = await res.json();
+      const el = document.getElementById("footerEngineInfo");
+      el.textContent = data.xray_installed 
+        ? `Xray Core: ${data.xray_version || 'Active'}`
+        : "Engine: TCP Probe Only";
+    }
+  } catch(e) {}
+}
+
+// Initialize
+checkAdminAuth();
+fetchStatus();
+loadEngineInfo();
+setInterval(fetchStatus, 30000);
 </script>
 </body>
 </html>

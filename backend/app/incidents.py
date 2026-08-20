@@ -33,7 +33,8 @@ def apply_check(db: Session, server: Server, check: CheckResult) -> None:
     check.status = status
 
     server.current_status = status
-    server.current_latency_ms = check.proxy_latency_ms or check.tcp_latency_ms
+    # Only set current_latency_ms when the proxy check actually succeeded
+    server.current_latency_ms = check.proxy_latency_ms if check.proxy_success else None
     server.last_checked_at = check.checked_at
 
     open_incident = (
@@ -49,9 +50,15 @@ def apply_check(db: Session, server: Server, check: CheckResult) -> None:
     else:
         server.consecutive_failures += 1
         if not open_incident and server.consecutive_failures >= FAILURES_BEFORE_INCIDENT:
+            summary = check.error
+            if not summary:
+                if status == ServerStatus.down:
+                    summary = "Proxy connectivity check failed"
+                else:
+                    summary = f"Degraded latency — {check.proxy_latency_ms} ms"
             db.add(Incident(
                 server_id=server.id,
                 started_at=check.checked_at,
                 severity="down" if status == ServerStatus.down else "degraded",
-                summary=check.error or f"{status.value} — {check.proxy_latency_ms or check.tcp_latency_ms} ms",
+                summary=summary,
             ))

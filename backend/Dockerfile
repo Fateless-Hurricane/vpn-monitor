@@ -1,7 +1,7 @@
 FROM python:3.12-slim
 
 # --- xray-core install (needed for real proxy connectivity checks) ---
-ARG XRAY_VERSION=v1.8.24
+ARG XRAY_VERSION=v24.11.30
 RUN apt-get update && apt-get install -y --no-install-recommends curl unzip ca-certificates \
     && ARCH=$(uname -m) \
     && if [ "$ARCH" = "aarch64" ] || [ "$ARCH" = "arm64" ]; then XRAY_ARCH="arm64-v8a"; else XRAY_ARCH="64"; fi \

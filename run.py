@@ -26,7 +26,7 @@ BIN_DIR = ROOT_DIR / "bin"
 VENV_DIR = BACKEND_DIR / ".venv"
 REQ_FILE = BACKEND_DIR / "requirements.txt"
 
-XRAY_VERSION = "v1.8.24"
+XRAY_VERSION = "v24.11.30"
 
 
 def log(msg: str):
